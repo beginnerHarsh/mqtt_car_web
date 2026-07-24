@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { VehicleState, ConnectionStatus } from '../types/vehicle';
 import { formatCoordinate } from '../utils/geo';
 import { Car3DViewer } from './Car3DViewer';
-import { Car, MapPin, Navigation, Cpu, RefreshCw, ChevronDown, ChevronUp, Box } from 'lucide-react';
+import { Tractor, MapPin, Navigation, Cpu, RefreshCw, ChevronDown, ChevronUp, Box, Gauge, Clock } from 'lucide-react';
+import { VehicleStats } from '../services/dynamoService';
 
 interface SidebarProps {
   vehicles: VehicleState[];
@@ -15,6 +16,7 @@ interface SidebarProps {
   onToggleSimulator: (enabled: boolean) => void;
   onReconnect: () => void;
   onLocateVehicle: () => void;
+  dynamoStats?: VehicleStats | null;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -23,11 +25,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   selectedDeviceId,
   onSelectVehicle,
   status: _status,
-  packetsReceived,
+  packetsReceived: _packetsReceived,
   isSimulator,
   onToggleSimulator,
   onReconnect,
   onLocateVehicle,
+  dynamoStats,
 }) => {
   const [isCardCollapsed, setIsCardCollapsed] = useState<boolean>(false);
   const [showFleetList, setShowFleetList] = useState<boolean>(false);
@@ -42,9 +45,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const statusText = isMoving ? `Moving • ${speed} km/h` : `Stationary`;
 
   const getVehicleDisplayName = (id: string) => {
-    if (id === 'CAR001') return 'Toyota Innova (CAR001)';
-    if (id === 'CAR002') return 'Mahindra Thar (CAR002)';
-    if (id === 'CAR003') return 'Hyundai Creta (CAR003)';
+    if (id === 'MAHINDRA') return 'Mahindra';
+    if (id === 'JOHN_DEERE') return 'John Deere';
+    if (id === 'SWARAJ') return 'Swaraj';
+    if (id === 'SONALIKA') return 'Sonalika';
+    if (id === 'FARMTRAC') return 'Farmtrac';
     return id;
   };
 
@@ -59,11 +64,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <div className="flex items-center gap-3">
             <div className="bg-blue-50 p-2.5 rounded-xl border border-blue-100 text-blue-600 shadow-sm shrink-0">
-              <Car className="w-5 h-5" />
+              <Tractor className="w-5 h-5" />
             </div>
             <div>
               <h2 className="font-bold text-base text-slate-900 tracking-tight leading-tight">
-                {selectedVehicle ? getVehicleDisplayName(selectedVehicle.deviceId) : 'Toyota Innova'}
+                {selectedVehicle ? getVehicleDisplayName(selectedVehicle.deviceId) : 'Mahindra'}
               </h2>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className={`w-2 h-2 rounded-full ${isMoving ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
@@ -116,6 +121,75 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Locate Vehicle
             </button>
 
+            {/* Operation Analytics Cards */}
+            {dynamoStats && (
+              <div className="p-3 bg-slate-50 border border-slate-200/60 rounded-xl flex flex-col gap-2 shadow-inner">
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200/50 pb-1.5">
+                  <Gauge className="w-4 h-4 text-blue-600" />
+                  Operation Analytics (DynamoDB)
+                </h3>
+                <div className="grid grid-cols-2 gap-2 mt-0.5">
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Distance</span>
+                    <span className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">
+                      {(dynamoStats.Total_Distance / 1000).toFixed(2)} km
+                    </span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Time</span>
+                    <span className="text-sm font-extrabold text-slate-800 font-mono mt-0.5 flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      {(() => {
+                        const h = Math.floor(dynamoStats.Active_Duration / 3600);
+                        const m = Math.floor((dynamoStats.Active_Duration % 3600) / 60);
+                        const s = Math.floor(dynamoStats.Active_Duration % 60);
+                        return h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
+                      })()}
+                    </span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Idle Time</span>
+                    <span className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">
+                      {(() => {
+                        const h = Math.floor(dynamoStats.Idle_Duration / 3600);
+                        const m = Math.floor((dynamoStats.Idle_Duration % 3600) / 60);
+                        const s = Math.floor(dynamoStats.Idle_Duration % 60);
+                        return h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
+                      })()}
+                    </span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Idling Ratio</span>
+                    <span className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">
+                      {(() => {
+                        const total = dynamoStats.Active_Duration + dynamoStats.Idle_Duration;
+                        return total > 0 ? `${Math.round((dynamoStats.Idle_Duration / total) * 100)}%` : "0%";
+                      })()}
+                    </span>
+                  </div>
+                </div>
+                {/* Visual split indicator progress bar */}
+                {(() => {
+                  const total = dynamoStats.Active_Duration + dynamoStats.Idle_Duration;
+                  if (total === 0) return null;
+                  const activePercent = Math.round((dynamoStats.Active_Duration / total) * 100);
+                  const idlePercent = 100 - activePercent;
+                  return (
+                    <div className="w-full mt-1.5">
+                      <div className="flex justify-between text-[9px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
+                        <span className="text-emerald-600">Active: {activePercent}%</span>
+                        <span className="text-amber-500">Idle: {idlePercent}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex border border-slate-300/30">
+                        <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${activePercent}%` }} />
+                        <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${idlePercent}%` }} />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             {/* 3D Car Model View Accordion Dropdown */}
             <div className="flex flex-col gap-2">
               <button
@@ -136,7 +210,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {/* Expandable 3D Model Render Canvas */}
               {show3DPreview && (
                 <div className="pt-1">
-                  <Car3DViewer speed={speed} heading={heading} isMoving={isMoving} />
+                  <Car3DViewer speed={speed} heading={heading} isMoving={isMoving} deviceId={selectedVehicle?.deviceId ?? 'MAHINDRA'} />
                 </div>
               )}
             </div>

@@ -50,7 +50,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     }
   };
 
-  const navItems = ['Home', 'Live Tracking', 'About'];
+  const navItems = ['Home', 'Live Tracking', 'History'];
 
   return (
     <header className="flex justify-between items-center w-full px-6 py-3 sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm h-16">
@@ -60,7 +60,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           <div className="p-1.5 rounded-lg bg-blue-600 text-white shadow-sm">
             <Radio className="w-5 h-5 animate-pulse" />
           </div>
-          <h1 className="font-bold text-xl text-blue-700 tracking-tight">FleetEase</h1>
+          <h1 className="font-bold text-xl text-blue-700 tracking-tight">pindbazaar</h1>
         </div>
 
         <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />

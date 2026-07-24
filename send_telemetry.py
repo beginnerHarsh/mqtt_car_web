@@ -51,9 +51,7 @@ SIMULATOR_WAYPOINTS = [
     (30.733320, 76.779400), # Closes loop
 ]
 
-DEVICE_ID = 'CAR001'
-# Resolve the wildcard topic to a specific topic
-TOPIC = TOPIC_TEMPLATE.replace('+', DEVICE_ID)
+DEVICE_IDS = ['MAHINDRA', 'JOHN_DEERE', 'SWARAJ', 'SONALIKA', 'FARMTRAC']
 
 # Math helpers
 def calculate_distance_meters(lat1, lng1, lat2, lng2):
@@ -150,7 +148,7 @@ def main():
     print("AWS Configuration:")
     print(f"  Endpoint: {ENDPOINT}")
     print(f"  Region:   {REGION}")
-    print(f"  Topic:    {TOPIC}")
+    print(f"  Topic Template: {TOPIC_TEMPLATE}")
     print(f"  Access Key: {AWS_ACCESS_KEY[:8]}... (hidden)")
     
     print("\nGenerating AWS SigV4 signed WebSocket URL...")
@@ -206,67 +204,87 @@ def main():
         client.loop_stop()
         sys.exit(1)
 
-    # Simulation variables
-    current_wp_idx = 0
-    segment_progress = 0.0
-    base_speed_kmh = 42
+    # Simulation variables for 5 field tractors
+    vehicles_state = [
+        {"deviceId": "MAHINDRA", "wp_idx": 0, "progress": 0.0, "base_speed": 22},
+        {"deviceId": "JOHN_DEERE", "wp_idx": 2, "progress": 0.2, "base_speed": 26},
+        {"deviceId": "SWARAJ", "wp_idx": 5, "progress": 0.4, "base_speed": 18},
+        {"deviceId": "SONALIKA", "wp_idx": 8, "progress": 0.1, "base_speed": 30},
+        {"deviceId": "FARMTRAC", "wp_idx": 11, "progress": 0.5, "base_speed": 20},
+    ]
     update_interval_sec = 1.0
 
-    print(f"\nStarting telemetry transmission on topic '{TOPIC}'...")
+    print(f"\nStarting telemetry transmission for 5 tractors on topic template '{TOPIC_TEMPLATE}'...")
     print("Press Ctrl+C to stop.\n")
 
     try:
         while True:
-            # Route logic
-            current_wp = SIMULATOR_WAYPOINTS[current_wp_idx]
-            next_wp_idx = (current_wp_idx + 1) % len(SIMULATOR_WAYPOINTS)
-            next_wp = SIMULATOR_WAYPOINTS[next_wp_idx]
+            for veh in vehicles_state:
+                device_id = veh["deviceId"]
+                current_wp_idx = veh["wp_idx"]
+                segment_progress = veh["progress"]
+                base_speed_kmh = veh["base_speed"]
 
-            distance_m = calculate_distance_meters(
-                current_wp[0], current_wp[1],
-                next_wp[0], next_wp[1]
-            )
-            heading = calculate_bearing(
-                current_wp[0], current_wp[1],
-                next_wp[0], next_wp[1]
-            )
+                # Route logic
+                current_wp = SIMULATOR_WAYPOINTS[current_wp_idx]
+                next_wp_idx = (current_wp_idx + 1) % len(SIMULATOR_WAYPOINTS)
+                next_wp = SIMULATOR_WAYPOINTS[next_wp_idx]
 
-            speed_ms = (base_speed_kmh * 1000.0) / 3600.0
-            step_fraction = speed_ms / max(distance_m, 10.0)
+                distance_m = calculate_distance_meters(
+                    current_wp[0], current_wp[1],
+                    next_wp[0], next_wp[1]
+                )
+                heading = calculate_bearing(
+                    current_wp[0], current_wp[1],
+                    next_wp[0], next_wp[1]
+                )
 
-            segment_progress += step_fraction
+                speed_ms = (base_speed_kmh * 1000.0) / 3600.0
+                step_fraction = speed_ms / max(distance_m, 10.0)
 
-            if segment_progress >= 1.0:
-                segment_progress = 0.0
-                current_wp_idx = next_wp_idx
+                segment_progress += step_fraction
 
-            wp_a = SIMULATOR_WAYPOINTS[current_wp_idx]
-            wp_b = SIMULATOR_WAYPOINTS[(current_wp_idx + 1) % len(SIMULATOR_WAYPOINTS)]
+                if segment_progress >= 1.0:
+                    segment_progress = 0.0
+                    current_wp_idx = next_wp_idx
 
-            lat = wp_a[0] + (wp_b[0] - wp_a[0]) * segment_progress
-            lng = wp_a[1] + (wp_b[1] - wp_a[1]) * segment_progress
+                # Save updated state
+                veh["wp_idx"] = current_wp_idx
+                veh["progress"] = segment_progress
 
-            speed_noise = (random.random() - 0.5) * 6
-            current_speed = max(10, int(base_speed_kmh + speed_noise))
+                wp_a = SIMULATOR_WAYPOINTS[current_wp_idx]
+                wp_b = SIMULATOR_WAYPOINTS[(current_wp_idx + 1) % len(SIMULATOR_WAYPOINTS)]
 
-            # Construct Telemetry Payload
-            payload = {
-                "deviceId": DEVICE_ID,
-                "lat": round(lat, 6),
-                "lng": round(lng, 6),
-                "speed": current_speed,
-                "heading": int(round(heading)),
-                "timestamp": int(time.time())
-            }
+                lat = wp_a[0] + (wp_b[0] - wp_a[0]) * segment_progress
+                lng = wp_a[1] + (wp_b[1] - wp_a[1]) * segment_progress
 
-            payload_str = json.dumps(payload)
-            print(f"Publishing: {payload_str}")
+                speed_noise = (random.random() - 0.5) * 4
+                current_speed = max(5, int(base_speed_kmh + speed_noise))
 
-            client.publish(
-                topic=TOPIC,
-                payload=payload_str,
-                qos=0
-            )
+                # Construct Telemetry Payload (Matching the real GPS device structure)
+                # 5% chance of empty coords to verify robust Lambda & Frontend fallbacks
+                test_empty = random.random() < 0.05
+                lat_str = "" if test_empty else f"{lat:.6f}"
+                lng_str = "" if test_empty else f"{lng:.6f}"
+
+                payload = {
+                    "Device_ID": device_id,
+                    "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "Latitude": lat_str,
+                    "Longitude": lng_str,
+                    "RunningTime": str(int(segment_progress * 100)),
+                    "RunningStatus": "On" if current_speed > 0 else "Off"
+                }
+
+                payload_str = json.dumps(payload)
+                topic = TOPIC_TEMPLATE.replace('+', device_id)
+                print(f"Publishing [{device_id}]: {payload_str}")
+
+                client.publish(
+                    topic=topic,
+                    payload=payload_str,
+                    qos=0
+                )
 
             time.sleep(update_interval_sec)
 

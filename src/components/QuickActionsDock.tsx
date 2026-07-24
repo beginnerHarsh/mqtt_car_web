@@ -9,6 +9,7 @@ interface QuickActionsDockProps {
   onEmergency?: () => void;
   isAutoFollow?: boolean;
   isRouteVisible?: boolean;
+  isHistoryVisible?: boolean;
 }
 
 export const QuickActionsDock: React.FC<QuickActionsDockProps> = ({
@@ -19,6 +20,7 @@ export const QuickActionsDock: React.FC<QuickActionsDockProps> = ({
   onEmergency,
   isAutoFollow = true,
   isRouteVisible = true,
+  isHistoryVisible = false,
 }) => {
   return (
     <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-30">
@@ -67,7 +69,13 @@ export const QuickActionsDock: React.FC<QuickActionsDockProps> = ({
           className="flex flex-col items-center justify-center gap-1 min-w-[64px] px-2 py-1.5 rounded-full hover:bg-slate-100 transition-all group"
           title="View Telemetry Packet History"
         >
-          <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-slate-200 text-slate-700 transition-all">
+          <div
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+              isHistoryVisible
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
+                : 'bg-slate-100 text-slate-700 group-hover:bg-slate-200'
+            }`}
+          >
             <History className="w-4 h-4" />
           </div>
           <span className="text-[10px] font-semibold text-slate-600">History</span>

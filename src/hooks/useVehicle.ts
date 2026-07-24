@@ -9,11 +9,12 @@ export interface UseVehicleReturn {
   selectedDeviceId: string;
   setSelectedDeviceId: (id: string) => void;
   updateVehicleFromPacket: (packet: TelemetryPacket) => void;
+  setVehicleHistory: (deviceId: string, historyPoints: [number, number][]) => void;
 }
 
 export function useVehicle(): UseVehicleReturn {
   const [vehicles, setVehicles] = useState<VehicleState[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('CAR001');
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('MAHINDRA');
 
   // Internal mutable ref for smooth 60fps frame loop without React re-render overhead
   const vehiclesMapRef = useRef<Map<string, VehicleState>>(new Map());
@@ -97,6 +98,45 @@ export function useVehicle(): UseVehicleReturn {
   }, []);
 
   /**
+   * Set vehicle route history coordinates from external source (like DynamoDB)
+   */
+  const setVehicleHistory = useCallback((deviceId: string, historyPoints: [number, number][]) => {
+    const map = vehiclesMapRef.current;
+    const existing = map.get(deviceId);
+    const now = Date.now();
+
+    if (existing) {
+      map.set(deviceId, {
+        ...existing,
+        history: historyPoints,
+      });
+    } else {
+      const lastPoint = historyPoints[historyPoints.length - 1];
+      const startLat = lastPoint?.[0] ?? 30.73332;
+      const startLng = lastPoint?.[1] ?? 76.7794;
+      map.set(deviceId, {
+        deviceId,
+        currentLat: startLat,
+        currentLng: startLng,
+        currentHeading: 0,
+        targetLat: startLat,
+        targetLng: startLng,
+        targetHeading: 0,
+        prevLat: startLat,
+        prevLng: startLng,
+        prevHeading: 0,
+        speed: 0,
+        lastUpdateTimestamp: now,
+        packetTimestamp: Math.floor(now / 1000),
+        packetCount: 0,
+        animationStartTime: now,
+        animationDuration: 1000,
+        history: historyPoints,
+      });
+    }
+  }, []);
+
+  /**
    * 60 FPS Animation Frame Loop for Smooth Marker & Path Interpolation
    */
   useEffect(() => {
@@ -155,5 +195,6 @@ export function useVehicle(): UseVehicleReturn {
     selectedDeviceId,
     setSelectedDeviceId,
     updateVehicleFromPacket,
+    setVehicleHistory,
   };
 }

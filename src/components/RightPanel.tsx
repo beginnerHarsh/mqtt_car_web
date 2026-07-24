@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ConnectionStatus, TelemetryPacket, VehicleState } from '../types/vehicle';
 import { formatCoordinate } from '../utils/geo';
+import { VehicleStats } from '../services/dynamoService';
 
 interface RightPanelProps {
   status: ConnectionStatus;
   latestPacket: TelemetryPacket | null;
   selectedVehicle: VehicleState | null;
   packetsReceived: number;
+  allStats?: Record<string, VehicleStats>;
 }
 
 interface LogLine {
@@ -21,6 +23,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   latestPacket,
   selectedVehicle,
   packetsReceived,
+  allStats,
 }) => {
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [sessionStart] = useState<number>(Date.now());
@@ -61,13 +64,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     }
   }, [logs]);
 
-  // Speed chart data (last N speed readings)
-  const speedHistory = selectedVehicle
-    ? [...selectedVehicle.history].slice(-12).map((_, i, arr) => i / Math.max(arr.length - 1, 1))
-    : [];
-  const chartPoints = speedHistory.length > 1
-    ? speedHistory.map((x, i) => `${Math.round(x * 100)},${Math.round(30 - Math.random() * 20)}`).join(' L ')
-    : '0,20 L 100,20';
   const speed = selectedVehicle?.speed ?? 0;
   const lat = selectedVehicle ? formatCoordinate(selectedVehicle.currentLat) : '—';
   const lng = selectedVehicle ? formatCoordinate(selectedVehicle.currentLng) : '—';
@@ -90,6 +86,52 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         height: 'calc(100vh - 64px - 40px)',
       }}
     >
+      {/* ── Fleet Operations Summary ──────────────────────────── */}
+      {allStats && Object.keys(allStats).length > 0 && (
+        <div className="glass-panel rounded-xl p-4 flex flex-col gap-3 fade-in">
+          <h4
+            className="text-[11px] uppercase tracking-widest flex items-center gap-2"
+            style={{ color: '#8c909f' }}
+          >
+            <span className="text-base">🚜</span>
+            Fleet Mileage Summary
+          </h4>
+          <div className="flex flex-col gap-2.5">
+            {Object.entries(allStats).map(([id, s]) => {
+              const name = id === 'MAHINDRA' ? 'Mahindra' : id === 'JOHN_DEERE' ? 'John Deere' : id === 'SWARAJ' ? 'Swaraj' : id === 'SONALIKA' ? 'Sonalika' : id === 'FARMTRAC' ? 'Farmtrac' : id;
+              const activeMin = Math.floor(s.Active_Duration / 60);
+              const activeSec = Math.floor(s.Active_Duration % 60);
+              const totalTime = s.Active_Duration + s.Idle_Duration;
+              const idlePercent = totalTime > 0 ? Math.round((s.Idle_Duration / totalTime) * 100) : 0;
+              return (
+                <div key={id} className="p-2.5 rounded-lg border border-slate-700/30 flex flex-col gap-1.5" style={{ background: 'rgba(34,42,61,0.4)' }}>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-white font-mono">{name}</span>
+                    <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-bold uppercase ${s.Last_Status === 'moving' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
+                      {s.Last_Status || 'offline'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 text-[10px] text-slate-300 font-mono mt-0.5">
+                    <div>
+                      <span className="text-slate-500 block text-[8px] uppercase">Distance</span>
+                      <span className="font-extrabold text-slate-100">{(s.Total_Distance / 1000).toFixed(2)} km</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[8px] uppercase">Active</span>
+                      <span className="font-extrabold text-slate-100">{activeMin}m {activeSec}s</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[8px] uppercase">Idle Rate</span>
+                      <span className="font-extrabold text-slate-100">{idlePercent}%</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Connection Health Card ──────────────────────────── */}
       <div className="glass-panel rounded-xl p-4 flex flex-col gap-3 fade-in">
         <h4

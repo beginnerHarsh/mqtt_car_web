@@ -151,29 +151,83 @@ export class MQTTService {
   }
 
   /**
-   * Parse and validate incoming raw MQTT message payload
+   * Parse and validate incoming raw MQTT message payload.
+   * Supports both simulator formats and real GPS device structures.
    */
   private handleIncomingMessage(topic: string, rawPayload: string): void {
     try {
       const parsed = JSON.parse(rawPayload);
 
-      if (
-        typeof parsed.deviceId !== 'string' ||
-        typeof parsed.lat !== 'number' ||
-        typeof parsed.lng !== 'number' ||
-        isNaN(parsed.lat) ||
-        isNaN(parsed.lng)
-      ) {
-        throw new Error('Payload missing or invalid deviceId, lat, or lng');
+      // Extract device ID
+      const deviceId = parsed.Device_ID || parsed.deviceId;
+      if (typeof deviceId !== 'string') {
+        throw new Error('Payload missing Device_ID / deviceId');
+      }
+
+      // Extract coordinates with string-to-float conversions
+      let lat = 0;
+      let lng = 0;
+
+      const rawLat = parsed.Latitude !== undefined ? parsed.Latitude : parsed.lat;
+      const rawLng = parsed.Longitude !== undefined ? parsed.Longitude : parsed.lng;
+
+      if (rawLat !== undefined && rawLat !== null && rawLat !== '') {
+        lat = typeof rawLat === 'number' ? rawLat : parseFloat(rawLat);
+      } else {
+        // Fallback default coordinates if empty string from GPS device
+        lat = 30.73332;
+      }
+
+      if (rawLng !== undefined && rawLng !== null && rawLng !== '') {
+        lng = typeof rawLng === 'number' ? rawLng : parseFloat(rawLng);
+      } else {
+        lng = 76.7794;
+      }
+
+      if (isNaN(lat) || isNaN(lng)) {
+        throw new Error('Invalid numeric Latitude or Longitude');
+      }
+
+      // Extract speed or estimate from running status
+      let speed = 0;
+      const rawSpeed = parsed.Speed !== undefined ? parsed.Speed : parsed.speed;
+      if (rawSpeed !== undefined && rawSpeed !== null && rawSpeed !== '') {
+        speed = typeof rawSpeed === 'number' ? rawSpeed : parseFloat(rawSpeed);
+      } else if (parsed.RunningStatus === 'On') {
+        speed = 22; // default active speed in km/h if running engine
+      }
+
+      // Extract heading
+      let heading = 0;
+      const rawHeading = parsed.Heading !== undefined ? parsed.Heading : parsed.heading;
+      if (rawHeading !== undefined && rawHeading !== null && rawHeading !== '') {
+        heading = typeof rawHeading === 'number' ? rawHeading : parseFloat(rawHeading);
+      }
+
+      // Extract timestamp (handling numeric epoch or formatted string dates)
+      let timestamp = Math.floor(Date.now() / 1000);
+      const rawTimestamp = parsed.Timestamp !== undefined ? parsed.Timestamp : parsed.timestamp;
+      if (rawTimestamp !== undefined && rawTimestamp !== null && rawTimestamp !== '') {
+        if (typeof rawTimestamp === 'number') {
+          timestamp = rawTimestamp;
+        } else {
+          const date = new Date(rawTimestamp);
+          if (!isNaN(date.getTime())) {
+            timestamp = Math.floor(date.getTime() / 1000);
+          } else {
+            const num = parseFloat(rawTimestamp);
+            if (!isNaN(num)) timestamp = num;
+          }
+        }
       }
 
       const packet: TelemetryPacket = {
-        deviceId: parsed.deviceId,
-        lat: parsed.lat,
-        lng: parsed.lng,
-        speed: typeof parsed.speed === 'number' ? parsed.speed : 0,
-        heading: typeof parsed.heading === 'number' ? parsed.heading : 0,
-        timestamp: typeof parsed.timestamp === 'number' ? parsed.timestamp : Math.floor(Date.now() / 1000),
+        deviceId,
+        lat,
+        lng,
+        speed,
+        heading,
+        timestamp,
       };
 
       this.messageListeners.forEach((listener) => listener(topic, packet));
