@@ -33,25 +33,51 @@ AWS_SESSION_TOKEN = os.getenv('VITE_AWS_SESSION_TOKEN', '')
 REGION = os.getenv('VITE_REGION', 'us-east-1')
 TOPIC_TEMPLATE = os.getenv('VITE_MQTT_TOPIC', 'car/+/location')
 
-# Predefined closed loop route waypoints around Chandigarh city center
-SIMULATOR_WAYPOINTS = [
-    (30.733320, 76.779400),
-    (30.734500, 76.782000),
-    (30.737000, 76.784500),
-    (30.740500, 76.785000),
-    (30.744000, 76.782500),
-    (30.746500, 76.778000),
-    (30.748000, 76.772500),
-    (30.746000, 76.767000),
-    (30.742000, 76.764000),
-    (30.737500, 76.763500),
-    (30.734000, 76.766000),
-    (30.731500, 76.770500),
-    (30.730500, 76.775000),
-    (30.733320, 76.779400), # Closes loop
-]
+# Real-World Geographic Waypoint Routes for 5 Tractors across Punjab / North India
+VEHICLE_ROUTES = {
+    "MAHINDRA": [
+        (30.733320, 76.779400), # Chandigarh Sector 17
+        (30.738000, 76.782500), # Rose Garden
+        (30.742000, 76.786000), # Rock Garden
+        (30.744500, 76.788500), # Sukhna Lake
+        (30.740000, 76.785000), # Secretariat Road
+        (30.733320, 76.779400), # Loop back
+    ],
+    "JOHN_DEERE": [
+        (30.901000, 75.857300), # Ludhiana Ferozepur Road
+        (30.903500, 75.815000), # PAU Campus Gate 1
+        (30.906000, 75.808000), # PAU Agri Experimental Fields
+        (30.910000, 75.812000), # Sidhwan Canal Road
+        (30.906500, 75.845000), # Aarti Chowk
+        (30.901000, 75.857300), # Loop back
+    ],
+    "SWARAJ": [
+        (30.704600, 76.717900), # Mohali Phase 7 Market
+        (30.697000, 76.731000), # PCA Cricket Stadium Mohali
+        (30.678000, 76.735000), # IT City Expressway
+        (30.665000, 76.722000), # Aerocity Boulevard
+        (30.688000, 76.705000), # Fortis Hospital Chowk
+        (30.704600, 76.717900), # Loop back
+    ],
+    "SONALIKA": [
+        (31.530300, 75.911500), # Hoshiarpur City Centre
+        (31.535000, 75.920000), # GT Road Bypass Junction
+        (31.542000, 75.931000), # Sonalika Tractor Manufacturing Complex
+        (31.548000, 75.925000), # Hoshiarpur Industrial Estate
+        (31.538000, 75.905000), # Phagwara Highway Link
+        (31.530300, 75.911500), # Loop back
+    ],
+    "FARMTRAC": [
+        (31.634000, 74.872300), # Amritsar Heritage Street
+        (31.620000, 74.876500), # Golden Temple Peripheral Ring
+        (31.628000, 74.890000), # GT Road Junction
+        (31.645000, 74.885000), # Ranjit Avenue
+        (31.640000, 74.865000), # Court Road
+        (31.634000, 74.872300), # Loop back
+    ],
+}
 
-DEVICE_IDS = ['MAHINDRA', 'JOHN_DEERE', 'SWARAJ', 'SONALIKA', 'FARMTRAC']
+DEVICE_IDS = list(VEHICLE_ROUTES.keys())
 
 # Math helpers
 def calculate_distance_meters(lat1, lng1, lat2, lng2):
@@ -176,7 +202,6 @@ def main():
     
     def on_connect(c, userdata, flags, rc, properties=None):
         nonlocal connected
-        # In paho-mqtt v2, rc is a ReasonCode object. In v1, it's an integer.
         rc_val = getattr(rc, 'value', rc)
         if rc_val == 0:
             print("Connected successfully!")
@@ -204,17 +229,17 @@ def main():
         client.loop_stop()
         sys.exit(1)
 
-    # Simulation variables for 5 field tractors
+    # Simulation variables for 5 field tractors across 5 Indian cities
     vehicles_state = [
         {"deviceId": "MAHINDRA", "wp_idx": 0, "progress": 0.0, "base_speed": 22},
-        {"deviceId": "JOHN_DEERE", "wp_idx": 2, "progress": 0.2, "base_speed": 26},
-        {"deviceId": "SWARAJ", "wp_idx": 5, "progress": 0.4, "base_speed": 18},
-        {"deviceId": "SONALIKA", "wp_idx": 8, "progress": 0.1, "base_speed": 30},
-        {"deviceId": "FARMTRAC", "wp_idx": 11, "progress": 0.5, "base_speed": 20},
+        {"deviceId": "JOHN_DEERE", "wp_idx": 0, "progress": 0.1, "base_speed": 26},
+        {"deviceId": "SWARAJ", "wp_idx": 0, "progress": 0.2, "base_speed": 20},
+        {"deviceId": "SONALIKA", "wp_idx": 0, "progress": 0.0, "base_speed": 28},
+        {"deviceId": "FARMTRAC", "wp_idx": 0, "progress": 0.15, "base_speed": 24},
     ]
     update_interval_sec = 1.0
 
-    print(f"\nStarting telemetry transmission for 5 tractors on topic template '{TOPIC_TEMPLATE}'...")
+    print(f"\nStarting telemetry transmission for 5 tractors in 5 cities on topic template '{TOPIC_TEMPLATE}'...")
     print("Press Ctrl+C to stop.\n")
 
     try:
@@ -225,10 +250,12 @@ def main():
                 segment_progress = veh["progress"]
                 base_speed_kmh = veh["base_speed"]
 
+                route = VEHICLE_ROUTES[device_id]
+
                 # Route logic
-                current_wp = SIMULATOR_WAYPOINTS[current_wp_idx]
-                next_wp_idx = (current_wp_idx + 1) % len(SIMULATOR_WAYPOINTS)
-                next_wp = SIMULATOR_WAYPOINTS[next_wp_idx]
+                current_wp = route[current_wp_idx]
+                next_wp_idx = (current_wp_idx + 1) % len(route)
+                next_wp = route[next_wp_idx]
 
                 distance_m = calculate_distance_meters(
                     current_wp[0], current_wp[1],
@@ -252,8 +279,8 @@ def main():
                 veh["wp_idx"] = current_wp_idx
                 veh["progress"] = segment_progress
 
-                wp_a = SIMULATOR_WAYPOINTS[current_wp_idx]
-                wp_b = SIMULATOR_WAYPOINTS[(current_wp_idx + 1) % len(SIMULATOR_WAYPOINTS)]
+                wp_a = route[current_wp_idx]
+                wp_b = route[(current_wp_idx + 1) % len(route)]
 
                 lat = wp_a[0] + (wp_b[0] - wp_a[0]) * segment_progress
                 lng = wp_a[1] + (wp_b[1] - wp_a[1]) * segment_progress
@@ -261,17 +288,11 @@ def main():
                 speed_noise = (random.random() - 0.5) * 4
                 current_speed = max(5, int(base_speed_kmh + speed_noise))
 
-                # Construct Telemetry Payload (Matching the real GPS device structure)
-                # 5% chance of empty coords to verify robust Lambda & Frontend fallbacks
-                test_empty = random.random() < 0.05
-                lat_str = "" if test_empty else f"{lat:.6f}"
-                lng_str = "" if test_empty else f"{lng:.6f}"
-
                 payload = {
                     "Device_ID": device_id,
                     "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Latitude": lat_str,
-                    "Longitude": lng_str,
+                    "Latitude": f"{lat:.6f}",
+                    "Longitude": f"{lng:.6f}",
                     "RunningTime": str(int(segment_progress * 100)),
                     "RunningStatus": "On" if current_speed > 0 else "Off"
                 }

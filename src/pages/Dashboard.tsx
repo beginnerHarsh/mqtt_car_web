@@ -5,8 +5,6 @@ import { useDynamoStats } from '../hooks/useDynamoStats';
 import { fetchVehicleRouteHistory } from '../services/dynamoService';
 import { MapView } from '../components/MapView';
 import { StatusBar } from '../components/StatusBar';
-import { Sidebar } from '../components/Sidebar';
-import { RightPanel } from '../components/RightPanel';
 import { HistoryReport } from '../components/HistoryReport';
 import { QuickActionsDock } from '../components/QuickActionsDock';
 import { ToastContainer } from '../components/ToastContainer';
@@ -16,9 +14,6 @@ export const Dashboard: React.FC = () => {
     connectionStatus,
     latestPacket,
     packetsReceived,
-    isSimulator,
-    setSimulatorEnabled,
-    reconnect,
     toasts,
     dismissToast,
   } = useMQTT();
@@ -32,11 +27,10 @@ export const Dashboard: React.FC = () => {
     setVehicleHistory,
   } = useVehicle();
 
-  const { stats: dynamoStats, allStats, refresh: refreshStats } = useDynamoStats(selectedDeviceId, packetsReceived);
+  const { allStats, refresh: refreshStats } = useDynamoStats(selectedDeviceId, packetsReceived);
 
   const [autoFollow, setAutoFollow] = useState<boolean>(true);
   const [showRouteLine, setShowRouteLine] = useState<boolean>(true);
-  const [showHistoryPanel] = useState<boolean>(false);
   const [activeView, setActiveView] = useState<string>('live');
   const [activeTab, setActiveTab] = useState<string>('Live Tracking');
 
@@ -57,6 +51,11 @@ export const Dashboard: React.FC = () => {
     });
   }, []);
 
+  // Handle vehicle selection
+  const handleSelectVehicle = useCallback((id: string) => {
+    setSelectedDeviceId(id);
+  }, [setSelectedDeviceId]);
+
   // Route incoming telemetry packet into vehicle animation engine
   useEffect(() => {
     if (latestPacket) {
@@ -73,11 +72,11 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   const handleEmergencyAlert = useCallback(() => {
-    alert(`EMERGENCY ALERT triggered for vehicle ${selectedDeviceId}! Dispatch notified.`);
+    alert(`EMERGENCY ALERT triggered for vehicle ${selectedDeviceId || 'selected vehicle'}! Dispatch notified.`);
   }, [selectedDeviceId]);
 
   const handleContactDriver = useCallback(() => {
-    alert(`Initiating direct voice call to driver of ${selectedDeviceId}...`);
+    alert(`Initiating direct voice call to driver of ${selectedDeviceId || 'selected vehicle'}...`);
   }, [selectedDeviceId]);
 
   return (
@@ -88,8 +87,8 @@ export const Dashboard: React.FC = () => {
         selectedVehicle={selectedVehicle}
         vehicles={vehicles}
         packetsReceived={packetsReceived}
-        isSimulator={isSimulator}
-        onSelectVehicle={setSelectedDeviceId}
+        isSimulator={false}
+        onSelectVehicle={handleSelectVehicle}
         activeNavTab={activeTab}
         onSelectNavTab={setActiveTab}
       />
@@ -103,36 +102,11 @@ export const Dashboard: React.FC = () => {
               vehicles={vehicles}
               selectedVehicle={selectedVehicle}
               selectedDeviceId={selectedDeviceId}
-              onSelectVehicle={setSelectedDeviceId}
+              onSelectVehicle={handleSelectVehicle}
               autoFollow={autoFollow}
               onToggleAutoFollow={() => setAutoFollow((prev) => !prev)}
               showRouteLine={showRouteLine}
             />
-
-            {/* Floating Vehicle Card (Left Aligned) */}
-            <Sidebar
-              vehicles={vehicles}
-              selectedVehicle={selectedVehicle}
-              selectedDeviceId={selectedDeviceId}
-              onSelectVehicle={setSelectedDeviceId}
-              status={connectionStatus}
-              packetsReceived={packetsReceived}
-              isSimulator={isSimulator}
-              onToggleSimulator={setSimulatorEnabled}
-              onReconnect={reconnect}
-              onLocateVehicle={handleLocateVehicle}
-              dynamoStats={dynamoStats}
-            />
-
-            {showHistoryPanel && (
-              <RightPanel
-                status={connectionStatus}
-                latestPacket={latestPacket}
-                selectedVehicle={selectedVehicle}
-                packetsReceived={packetsReceived}
-                allStats={allStats}
-              />
-            )}
 
             {/* Quick Actions Dock (Bottom Center) */}
             <QuickActionsDock
@@ -150,12 +124,20 @@ export const Dashboard: React.FC = () => {
           <HistoryReport
             allStats={allStats}
             onBack={() => {
-              setActiveView('live');
               setActiveTab('Live Tracking');
+              setActiveView('live');
             }}
             onRefresh={() => refreshStats()}
             onLocateVehicle={async (id) => {
+              // 1. Instantly switch to live map view
+              setActiveTab('Live Tracking');
+              setActiveView('live');
+              
+              // 2. Select vehicle & enable auto follow
               setSelectedDeviceId(id);
+              setAutoFollow(true);
+
+              // 3. Load historical route line points from DynamoDB
               try {
                 const routePoints = await fetchVehicleRouteHistory(id);
                 if (routePoints && routePoints.length > 0) {
@@ -164,9 +146,6 @@ export const Dashboard: React.FC = () => {
               } catch (e) {
                 console.error("Failed to load vehicle path history:", e);
               }
-              setActiveView('live');
-              setActiveTab('Live Tracking');
-              handleLocateVehicle();
             }}
           />
         )}

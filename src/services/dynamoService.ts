@@ -73,7 +73,7 @@ export async function fetchVehicleRouteHistory(deviceId: string): Promise<[numbe
 
     if (response.Items && response.Items.length > 0) {
       // Map DynamoDB records to coordinate tuples [lat, lng]
-      return response.Items.map((item) => [
+      return response.Items.map((item: Record<string, any>) => [
         Number(item.Latitude),
         Number(item.Longitude),
       ]) as [number, number][];

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TelemetryPacket, VehicleState } from '../types/vehicle';
 import { lerp, lerpAngle } from '../utils/animation';
-import { ANIMATION_CONFIG } from '../constants/config';
+import { ANIMATION_CONFIG, MAP_CONFIG } from '../constants/config';
 
 export interface UseVehicleReturn {
   vehicles: VehicleState[];
@@ -12,24 +12,69 @@ export interface UseVehicleReturn {
   setVehicleHistory: (deviceId: string, historyPoints: [number, number][]) => void;
 }
 
+// Real-world initial coordinates for 5 tractor brands across 5 cities in North India
+export const CITY_LOCATIONS: Record<string, { city: string; lat: number; lng: number }> = {
+  MAHINDRA:   { city: 'Chandigarh',  lat: 30.733320, lng: 76.779400 },
+  JOHN_DEERE: { city: 'Ludhiana',    lat: 30.901000, lng: 75.857300 },
+  SWARAJ:     { city: 'Mohali',      lat: 30.704600, lng: 76.717900 },
+  SONALIKA:   { city: 'Hoshiarpur',  lat: 31.530300, lng: 75.911500 },
+  FARMTRAC:   { city: 'Amritsar',    lat: 31.634000, lng: 74.872300 },
+};
+
+function createDefaultVehicles(): Map<string, VehicleState> {
+  const map = new Map<string, VehicleState>();
+  const now = Date.now();
+
+  Object.entries(CITY_LOCATIONS).forEach(([id, loc]) => {
+    map.set(id, {
+      deviceId: id,
+      currentLat: loc.lat,
+      currentLng: loc.lng,
+      currentHeading: 0,
+      targetLat: loc.lat,
+      targetLng: loc.lng,
+      targetHeading: 0,
+      prevLat: loc.lat,
+      prevLng: loc.lng,
+      prevHeading: 0,
+      speed: 0,
+      lastUpdateTimestamp: now,
+      packetTimestamp: Math.floor(now / 1000),
+      packetCount: 0,
+      animationStartTime: now,
+      animationDuration: 1000,
+      history: [[loc.lat, loc.lng]],
+    });
+  });
+
+  return map;
+}
+
 export function useVehicle(): UseVehicleReturn {
-  const [vehicles, setVehicles] = useState<VehicleState[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('MAHINDRA');
+  // Initialize state with default fleet vehicles across cities
+  const [vehicles, setVehicles] = useState<VehicleState[]>(() =>
+    Array.from(createDefaultVehicles().values())
+  );
+  // Vehicle selection state (initially empty until user selects a vehicle)
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
 
   // Internal mutable ref for smooth 60fps frame loop without React re-render overhead
-  const vehiclesMapRef = useRef<Map<string, VehicleState>>(new Map());
+  const vehiclesMapRef = useRef<Map<string, VehicleState>>(createDefaultVehicles());
   const animationFrameIdRef = useRef<number | null>(null);
 
   /**
-   * Process incoming packet and update internal vehicle state target coordinates
+   * Process incoming packet. Movement and live path are updated ONLY for the selected vehicle.
    */
   const updateVehicleFromPacket = useCallback((packet: TelemetryPacket) => {
     const now = Date.now();
     const map = vehiclesMapRef.current;
     const existing = map.get(packet.deviceId);
 
+    // Vehicle moves ONLY if explicitly selected by user
+    const isSelected = selectedDeviceId !== '' && packet.deviceId === selectedDeviceId;
+
     if (!existing) {
-      // First telemetry packet for this vehicle - Start Point of the Trip
+      // Register new vehicle on map at initial location
       const newVehicle: VehicleState = {
         deviceId: packet.deviceId,
         currentLat: packet.lat,
@@ -41,7 +86,7 @@ export function useVehicle(): UseVehicleReturn {
         prevLat: packet.lat,
         prevLng: packet.lng,
         prevHeading: packet.heading,
-        speed: packet.speed,
+        speed: isSelected ? packet.speed : 0,
         lastUpdateTimestamp: now,
         packetTimestamp: packet.timestamp,
         packetCount: 1,
@@ -51,51 +96,68 @@ export function useVehicle(): UseVehicleReturn {
       };
       map.set(packet.deviceId, newVehicle);
     } else {
-      // Calculate dynamic interpolation duration based on interval between consecutive packets
-      const intervalMs = Math.min(
-        Math.max(now - existing.lastUpdateTimestamp, ANIMATION_CONFIG.minInterpolationDurationMs),
-        ANIMATION_CONFIG.maxInterpolationDurationMs
-      );
+      // If vehicle is NOT selected by user, update packet count & position without live movement
+      if (!isSelected) {
+        map.set(packet.deviceId, {
+          ...existing,
+          currentLat: packet.lat,
+          currentLng: packet.lng,
+          prevLat: packet.lat,
+          prevLng: packet.lng,
+          targetLat: packet.lat,
+          targetLng: packet.lng,
+          currentHeading: packet.heading,
+          speed: 0,
+          lastUpdateTimestamp: now,
+          packetTimestamp: packet.timestamp,
+          packetCount: existing.packetCount + 1,
+        });
+      } else {
+        // If vehicle IS selected, calculate dynamic interpolation duration & live path
+        const intervalMs = Math.min(
+          Math.max(now - existing.lastUpdateTimestamp, ANIMATION_CONFIG.minInterpolationDurationMs),
+          ANIMATION_CONFIG.maxInterpolationDurationMs
+        );
 
-      // Append historic route point if vehicle has moved
-      const newHistory = [...existing.history];
-      const lastPoint = newHistory[newHistory.length - 1];
+        // Append historic route point if vehicle has moved
+        const newHistory = [...existing.history];
+        const lastPoint = newHistory[newHistory.length - 1];
 
-      if (
-        !lastPoint ||
-        Math.abs(lastPoint[0] - packet.lat) > 0.00001 ||
-        Math.abs(lastPoint[1] - packet.lng) > 0.00001
-      ) {
-        newHistory.push([packet.lat, packet.lng]);
-        if (newHistory.length > ANIMATION_CONFIG.trailMaxLength) {
-          newHistory.shift();
+        if (
+          !lastPoint ||
+          Math.abs(lastPoint[0] - packet.lat) > 0.00001 ||
+          Math.abs(lastPoint[1] - packet.lng) > 0.00001
+        ) {
+          newHistory.push([packet.lat, packet.lng]);
+          if (newHistory.length > ANIMATION_CONFIG.trailMaxLength) {
+            newHistory.shift();
+          }
         }
+
+        const updatedVehicle: VehicleState = {
+          ...existing,
+          prevLat: existing.currentLat,
+          prevLng: existing.currentLng,
+          prevHeading: existing.currentHeading,
+          targetLat: packet.lat,
+          targetLng: packet.lng,
+          targetHeading: packet.heading,
+          speed: packet.speed,
+          lastUpdateTimestamp: now,
+          packetTimestamp: packet.timestamp,
+          packetCount: existing.packetCount + 1,
+          animationStartTime: now,
+          animationDuration: intervalMs,
+          history: newHistory,
+        };
+
+        map.set(packet.deviceId, updatedVehicle);
       }
-
-      const updatedVehicle: VehicleState = {
-        ...existing,
-        // Current position becomes start of new interpolation line segment
-        prevLat: existing.currentLat,
-        prevLng: existing.currentLng,
-        prevHeading: existing.currentHeading,
-        targetLat: packet.lat,
-        targetLng: packet.lng,
-        targetHeading: packet.heading,
-        speed: packet.speed,
-        lastUpdateTimestamp: now,
-        packetTimestamp: packet.timestamp,
-        packetCount: existing.packetCount + 1,
-        animationStartTime: now,
-        animationDuration: intervalMs,
-        history: newHistory,
-      };
-
-      map.set(packet.deviceId, updatedVehicle);
     }
 
-    // Auto-select first incoming device if none selected
-    setSelectedDeviceId((prev) => (prev ? prev : packet.deviceId));
-  }, []);
+    // Always update React vehicles state so UI dropdown and vehicle list reflect latest telemetry
+    setVehicles(Array.from(map.values()));
+  }, [selectedDeviceId]);
 
   /**
    * Set vehicle route history coordinates from external source (like DynamoDB)
@@ -106,14 +168,24 @@ export function useVehicle(): UseVehicleReturn {
     const now = Date.now();
 
     if (existing) {
+      const lastPoint = historyPoints[historyPoints.length - 1];
+      const targetLat = lastPoint ? lastPoint[0] : existing.currentLat;
+      const targetLng = lastPoint ? lastPoint[1] : existing.currentLng;
       map.set(deviceId, {
         ...existing,
+        currentLat: targetLat,
+        currentLng: targetLng,
+        targetLat,
+        targetLng,
+        prevLat: targetLat,
+        prevLng: targetLng,
         history: historyPoints,
       });
     } else {
       const lastPoint = historyPoints[historyPoints.length - 1];
-      const startLat = lastPoint?.[0] ?? 30.73332;
-      const startLng = lastPoint?.[1] ?? 76.7794;
+      const fallbackLoc = CITY_LOCATIONS[deviceId] ?? { lat: MAP_CONFIG.defaultCenter[0], lng: MAP_CONFIG.defaultCenter[1] };
+      const startLat = lastPoint?.[0] ?? fallbackLoc.lat;
+      const startLng = lastPoint?.[1] ?? fallbackLoc.lng;
       map.set(deviceId, {
         deviceId,
         currentLat: startLat,
@@ -134,6 +206,8 @@ export function useVehicle(): UseVehicleReturn {
         history: historyPoints,
       });
     }
+
+    setVehicles(Array.from(map.values()));
   }, []);
 
   /**
@@ -187,7 +261,7 @@ export function useVehicle(): UseVehicleReturn {
     };
   }, []);
 
-  const selectedVehicle = vehicles.find((v) => v.deviceId === selectedDeviceId) || vehicles[0] || null;
+  const selectedVehicle = vehicles.find((v) => v.deviceId === selectedDeviceId) || null;
 
   return {
     vehicles,

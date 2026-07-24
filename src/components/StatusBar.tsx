@@ -2,6 +2,8 @@ import React from 'react';
 import { ConnectionStatus, VehicleState } from '../types/vehicle';
 import { Radio } from 'lucide-react';
 
+import { CITY_LOCATIONS } from '../hooks/useVehicle';
+
 interface StatusBarProps {
   status: ConnectionStatus;
   selectedVehicle: VehicleState | null;
@@ -71,15 +73,16 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           onChange={(e) => onSelectVehicle(e.target.value)}
           className="text-xs font-medium bg-slate-100 border border-slate-300 text-slate-800 rounded-lg px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-mono"
         >
-          {vehicles.length === 0 ? (
-            <option value="">No Vehicles</option>
-          ) : (
-            vehicles.map((v) => (
+          <option value="">🎯 Select Vehicle to Track Live</option>
+          {vehicles.map((v) => {
+            const cityName = CITY_LOCATIONS[v.deviceId]?.city ?? v.deviceId;
+            const isLive = v.deviceId === selectedVehicle?.deviceId;
+            return (
               <option key={v.deviceId} value={v.deviceId}>
-                🚘 {v.deviceId} ({v.speed} km/h)
+                🚘 {v.deviceId} ({cityName}) {isLive ? '• Live Tracking' : ''}
               </option>
-            ))
-          )}
+            );
+          })}
         </select>
 
         {/* Connection Status Badge */}

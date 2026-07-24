@@ -9,15 +9,6 @@ interface VehicleMarkerProps {
   onSelect: (deviceId: string) => void;
 }
 
-const getTractorName = (id: string) => {
-  if (id === 'MAHINDRA') return 'Mahindra';
-  if (id === 'JOHN_DEERE') return 'John Deere';
-  if (id === 'SWARAJ') return 'Swaraj';
-  if (id === 'SONALIKA') return 'Sonalika';
-  if (id === 'FARMTRAC') return 'Farmtrac';
-  return id;
-};
-
 /**
  * Creates a high-fidelity 3D-styled Tractor SVG Graphic with perspective depth,
  * tire treads, driver seat mudguards, and glowing headlights.
@@ -179,25 +170,6 @@ export const VehicleMarker: React.FC<VehicleMarkerProps> = ({
       });
 
       const marker = L.marker(latLng, { icon }).addTo(map);
-
-      const popupContent = `
-        <div class="p-2.5 bg-white text-slate-800 font-sans rounded-xl shadow-md border border-slate-200">
-          <div class="font-bold text-blue-600 text-sm flex items-center gap-1.5">
-            🚜 ${getTractorName(vehicle.deviceId)}
-          </div>
-          <div class="mt-1.5 text-xs text-slate-600 space-y-1 font-mono">
-            <div>Status: <span class="text-emerald-600 font-bold">${vehicle.speed > 0 ? 'Moving' : 'Stationary'}</span></div>
-            <div>Speed: <span class="text-slate-900 font-bold">${vehicle.speed} km/h</span></div>
-            <div>Heading: <span class="text-slate-900 font-bold">${Math.round(vehicle.currentHeading)}°</span></div>
-            <div>Coordinates: ${vehicle.currentLat.toFixed(5)}, ${vehicle.currentLng.toFixed(5)}</div>
-          </div>
-        </div>
-      `;
-
-      marker.bindPopup(popupContent, {
-        className: 'dark-leaflet-popup',
-        closeButton: false,
-      });
 
       marker.on('click', () => {
         onSelect(vehicle.deviceId);

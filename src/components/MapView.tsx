@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import { VehicleState } from '../types/vehicle';
-import { MAP_CONFIG } from '../constants/config';
+import { MAP_CONFIG, MAP_LAYERS, MapLayerOption } from '../constants/config';
 import { VehicleMarker } from './VehicleMarker';
-import { Plus, Minus, Layers, TrafficCone } from 'lucide-react';
+import { Plus, Minus, Layers, TrafficCone, Check, Globe } from 'lucide-react';
 
 interface MapViewProps {
   vehicles: VehicleState[];
@@ -26,12 +26,15 @@ export const MapView: React.FC<MapViewProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const glowPolylineRef = useRef<L.Polyline | null>(null);
   const corePolylineRef = useRef<L.Polyline | null>(null);
   const startMarkerRef = useRef<L.Marker | null>(null);
 
   const [mapReady, setMapReady] = useState<boolean>(false);
   const [trafficActive, setTrafficActive] = useState<boolean>(false);
+  const [selectedLayerId, setSelectedLayerId] = useState<string>('osm');
+  const [showLayerMenu, setShowLayerMenu] = useState<boolean>(false);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -44,12 +47,15 @@ export const MapView: React.FC<MapViewProps> = ({
       attributionControl: false,
     });
 
-    // Add CartoDB Voyager Light Tile Layer for clean map view
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: MAP_CONFIG.maxZoom,
+    const initialLayer = MAP_LAYERS.find((l) => l.id === 'osm') || MAP_LAYERS[0];
+    const tileLayer = L.tileLayer(initialLayer.url, {
+      maxZoom: initialLayer.maxZoom || MAP_CONFIG.maxZoom,
       minZoom: MAP_CONFIG.minZoom,
-      attribution: MAP_CONFIG.tileAttribution,
+      attribution: initialLayer.attribution,
+      subdomains: ['a', 'b', 'c'],
     }).addTo(map);
+
+    tileLayerRef.current = tileLayer;
 
     // Outer Soft Glow Polyline
     const glowPolyline = L.polyline([], {
@@ -88,6 +94,28 @@ export const MapView: React.FC<MapViewProps> = ({
       mapInstanceRef.current = null;
     };
   }, []);
+
+  // Change Map Tile Layer dynamically
+  const switchMapLayer = (layer: MapLayerOption) => {
+    setSelectedLayerId(layer.id);
+    setShowLayerMenu(false);
+
+    if (mapInstanceRef.current && tileLayerRef.current) {
+      mapInstanceRef.current.removeLayer(tileLayerRef.current);
+      const newTileLayer = L.tileLayer(layer.url, {
+        maxZoom: layer.maxZoom || MAP_CONFIG.maxZoom,
+        minZoom: MAP_CONFIG.minZoom,
+        attribution: layer.attribution,
+        subdomains: ['a', 'b', 'c'],
+      }).addTo(mapInstanceRef.current);
+      
+      // Keep polylines on top
+      if (glowPolylineRef.current) glowPolylineRef.current.bringToFront();
+      if (corePolylineRef.current) corePolylineRef.current.bringToFront();
+
+      tileLayerRef.current = newTileLayer;
+    }
+  };
 
   // Update Route Polyline & Start Point Pin when vehicle moves or when route visibility changes
   useEffect(() => {
@@ -188,14 +216,52 @@ export const MapView: React.FC<MapViewProps> = ({
           </button>
         </div>
 
-        <button
-          onClick={() => {}}
-          aria-label="Map Layers"
-          className="bg-white p-3 rounded-xl shadow-lg border border-slate-200/80 text-slate-700 hover:bg-slate-100 transition-colors flex items-center justify-center"
-          title="Map Layers"
-        >
-          <Layers className="w-4 h-4" />
-        </button>
+        {/* Map Layers Dropdown Button */}
+        <div className="relative">
+          <button
+            onClick={() => setShowLayerMenu((prev) => !prev)}
+            aria-label="Map Layers"
+            className={`p-3 rounded-xl shadow-lg border transition-all flex items-center justify-center ${
+              showLayerMenu
+                ? 'bg-blue-600 text-white border-blue-700 shadow-blue-500/30'
+                : 'bg-white text-slate-700 border-slate-200/80 hover:bg-slate-100'
+            }`}
+            title="Change Map Style"
+          >
+            <Layers className="w-4 h-4" />
+          </button>
+
+          {/* Map Layer Menu Popover */}
+          {showLayerMenu && (
+            <div className="absolute right-0 top-12 w-64 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 p-2 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-blue-600" /> Map Style
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium">Select Provider</span>
+              </div>
+              <div className="py-1 flex flex-col gap-1 max-h-64 overflow-y-auto">
+                {MAP_LAYERS.map((layer) => {
+                  const isSelected = layer.id === selectedLayerId;
+                  return (
+                    <button
+                      key={layer.id}
+                      onClick={() => switchMapLayer(layer)}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-all ${
+                        isSelected
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-sm'
+                          : 'text-slate-700 hover:bg-slate-100/80 border border-transparent'
+                      }`}
+                    >
+                      <span className="truncate">{layer.name}</span>
+                      {isSelected && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
 
         <button
           onClick={() => setTrafficActive((prev) => !prev)}
