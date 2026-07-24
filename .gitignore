@@ -34,3 +34,13 @@ pnpm-debug.log*
 # System Files
 .DS_Store
 Thumbs.db
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+
