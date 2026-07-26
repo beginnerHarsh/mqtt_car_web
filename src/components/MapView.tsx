@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { VehicleState } from '../types/vehicle';
 import { MAP_CONFIG, MAP_LAYERS, MapLayerOption } from '../constants/config';
 import { VehicleMarker } from './VehicleMarker';
+import { GeofenceOverlay } from './GeofenceOverlay';
 import { Plus, Minus, Layers, TrafficCone, Check, Globe } from 'lucide-react';
 
 interface MapViewProps {
@@ -13,6 +14,8 @@ interface MapViewProps {
   autoFollow: boolean;
   onToggleAutoFollow: () => void;
   showRouteLine?: boolean;
+  implementWidthMeters?: number;
+  showGeofences?: boolean;
 }
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -23,10 +26,13 @@ export const MapView: React.FC<MapViewProps> = ({
   autoFollow,
   onToggleAutoFollow,
   showRouteLine = true,
+  implementWidthMeters = 3.5,
+  showGeofences = true,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const coveragePolylineRef = useRef<L.Polyline | null>(null);
   const glowPolylineRef = useRef<L.Polyline | null>(null);
   const corePolylineRef = useRef<L.Polyline | null>(null);
   const startMarkerRef = useRef<L.Marker | null>(null);
@@ -48,14 +54,29 @@ export const MapView: React.FC<MapViewProps> = ({
     });
 
     const initialLayer = MAP_LAYERS.find((l) => l.id === 'osm') || MAP_LAYERS[0];
-    const tileLayer = L.tileLayer(initialLayer.url, {
+    const initialOptions: L.TileLayerOptions = {
       maxZoom: initialLayer.maxZoom || MAP_CONFIG.maxZoom,
       minZoom: MAP_CONFIG.minZoom,
       attribution: initialLayer.attribution,
-      subdomains: ['a', 'b', 'c'],
-    }).addTo(map);
+      updateWhenZooming: true,
+      updateWhenIdle: false,
+      keepBuffer: 4,
+    };
+    if (initialLayer.url.includes('{s}')) {
+      initialOptions.subdomains = ['a', 'b', 'c'];
+    }
 
+    const tileLayer = L.tileLayer(initialLayer.url, initialOptions).addTo(map);
     tileLayerRef.current = tileLayer;
+
+    // Field Cultivation Area Coverage Polyline (Wide Green Band)
+    const coveragePolyline = L.polyline([], {
+      color: '#10b981',
+      weight: Math.round(implementWidthMeters * 5),
+      opacity: 0.35,
+      lineCap: 'square',
+      lineJoin: 'miter',
+    }).addTo(map);
 
     // Outer Soft Glow Polyline
     const glowPolyline = L.polyline([], {
@@ -75,6 +96,7 @@ export const MapView: React.FC<MapViewProps> = ({
       lineJoin: 'round',
     }).addTo(map);
 
+    coveragePolylineRef.current = coveragePolyline;
     glowPolylineRef.current = glowPolyline;
     corePolylineRef.current = corePolyline;
     mapInstanceRef.current = map;
@@ -88,12 +110,33 @@ export const MapView: React.FC<MapViewProps> = ({
 
     map.on('dragstart', handleUserDrag);
 
+    // Invalidate size after container renders to guarantee full window tile filling
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
       map.off('dragstart', handleUserDrag);
       map.remove();
       mapInstanceRef.current = null;
     };
   }, []);
+
+  // Update Implement Width on Map
+  useEffect(() => {
+    if (coveragePolylineRef.current) {
+      coveragePolylineRef.current.setStyle({
+        weight: Math.round(implementWidthMeters * 5),
+      });
+    }
+  }, [implementWidthMeters]);
 
   // Change Map Tile Layer dynamically
   const switchMapLayer = (layer: MapLayerOption) => {
@@ -102,14 +145,24 @@ export const MapView: React.FC<MapViewProps> = ({
 
     if (mapInstanceRef.current && tileLayerRef.current) {
       mapInstanceRef.current.removeLayer(tileLayerRef.current);
-      const newTileLayer = L.tileLayer(layer.url, {
+
+      const layerOptions: L.TileLayerOptions = {
         maxZoom: layer.maxZoom || MAP_CONFIG.maxZoom,
         minZoom: MAP_CONFIG.minZoom,
         attribution: layer.attribution,
-        subdomains: ['a', 'b', 'c'],
-      }).addTo(mapInstanceRef.current);
+        updateWhenZooming: true,
+        updateWhenIdle: false,
+        keepBuffer: 4,
+      };
+
+      if (layer.url.includes('{s}')) {
+        layerOptions.subdomains = ['a', 'b', 'c'];
+      }
+
+      const newTileLayer = L.tileLayer(layer.url, layerOptions).addTo(mapInstanceRef.current);
       
       // Keep polylines on top
+      if (coveragePolylineRef.current) coveragePolylineRef.current.bringToFront();
       if (glowPolylineRef.current) glowPolylineRef.current.bringToFront();
       if (corePolylineRef.current) corePolylineRef.current.bringToFront();
 
@@ -129,7 +182,8 @@ export const MapView: React.FC<MapViewProps> = ({
       : [];
 
     // Update Polylines with route path coordinates or empty if route hidden
-    if (glowPolylineRef.current && corePolylineRef.current) {
+    if (coveragePolylineRef.current && glowPolylineRef.current && corePolylineRef.current) {
+      coveragePolylineRef.current.setLatLngs(historyPoints);
       glowPolylineRef.current.setLatLngs(historyPoints);
       corePolylineRef.current.setLatLngs(historyPoints);
     }
@@ -195,13 +249,18 @@ export const MapView: React.FC<MapViewProps> = ({
       {/* Leaflet Map Container */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
+      {/* Render Geofence Field Boundaries Overlay */}
+      {mapReady && (
+        <GeofenceOverlay map={mapInstanceRef.current} visible={showGeofences} />
+      )}
+
       {/* FleetEase Map Controls (Top Right) */}
-      <div className="absolute right-6 top-20 z-20 flex flex-col gap-2">
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200/80 flex flex-col overflow-hidden">
+      <div className="absolute right-6 top-20 z-20 flex flex-col gap-2 font-sans">
+        <div className="bg-slate-900/90 backdrop-blur-xl rounded-xl shadow-2xl border border-slate-700/80 flex flex-col overflow-hidden">
           <button
             onClick={handleZoomIn}
             aria-label="Zoom In"
-            className="p-3 text-slate-700 hover:bg-slate-100 transition-colors border-b border-slate-100 flex items-center justify-center"
+            className="p-3 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors border-b border-slate-800 flex items-center justify-center"
             title="Zoom In"
           >
             <Plus className="w-4 h-4" />
@@ -209,7 +268,7 @@ export const MapView: React.FC<MapViewProps> = ({
           <button
             onClick={handleZoomOut}
             aria-label="Zoom Out"
-            className="p-3 text-slate-700 hover:bg-slate-100 transition-colors flex items-center justify-center"
+            className="p-3 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors flex items-center justify-center"
             title="Zoom Out"
           >
             <Minus className="w-4 h-4" />
@@ -221,10 +280,10 @@ export const MapView: React.FC<MapViewProps> = ({
           <button
             onClick={() => setShowLayerMenu((prev) => !prev)}
             aria-label="Map Layers"
-            className={`p-3 rounded-xl shadow-lg border transition-all flex items-center justify-center ${
+            className={`p-3 rounded-xl shadow-2xl border transition-all flex items-center justify-center ${
               showLayerMenu
-                ? 'bg-blue-600 text-white border-blue-700 shadow-blue-500/30'
-                : 'bg-white text-slate-700 border-slate-200/80 hover:bg-slate-100'
+                ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/40'
+                : 'bg-slate-900/90 backdrop-blur-xl text-slate-300 border-slate-700/80 hover:text-white hover:bg-slate-800'
             }`}
             title="Change Map Style"
           >
@@ -233,12 +292,12 @@ export const MapView: React.FC<MapViewProps> = ({
 
           {/* Map Layer Menu Popover */}
           {showLayerMenu && (
-            <div className="absolute right-0 top-12 w-64 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 p-2 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-blue-600" /> Map Style
+            <div className="absolute right-0 top-12 w-64 bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/80 p-2 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between">
+                <span className="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                  <Globe className="w-3.5 h-3.5 text-blue-400" /> Map Style
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium">Select Provider</span>
+                <span className="text-[10px] text-slate-400 font-mono font-semibold">Select Layer</span>
               </div>
               <div className="py-1 flex flex-col gap-1 max-h-64 overflow-y-auto">
                 {MAP_LAYERS.map((layer) => {
@@ -249,12 +308,12 @@ export const MapView: React.FC<MapViewProps> = ({
                       onClick={() => switchMapLayer(layer)}
                       className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-all ${
                         isSelected
-                          ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-sm'
-                          : 'text-slate-700 hover:bg-slate-100/80 border border-transparent'
+                          ? 'bg-blue-600/30 text-blue-400 border border-blue-500/40 shadow-sm'
+                          : 'text-slate-300 hover:text-white hover:bg-slate-800/80 border border-transparent'
                       }`}
                     >
                       <span className="truncate">{layer.name}</span>
-                      {isSelected && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
+                      {isSelected && <Check className="w-4 h-4 text-blue-400 shrink-0" />}
                     </button>
                   );
                 })}
@@ -266,10 +325,10 @@ export const MapView: React.FC<MapViewProps> = ({
         <button
           onClick={() => setTrafficActive((prev) => !prev)}
           aria-label="Traffic"
-          className={`p-3 rounded-xl shadow-lg border transition-colors flex items-center justify-center ${
+          className={`p-3 rounded-xl shadow-2xl border transition-colors flex items-center justify-center ${
             trafficActive
               ? 'bg-amber-500 text-white border-amber-600 shadow-amber-500/20'
-              : 'bg-white text-slate-700 border-slate-200/80 hover:bg-slate-100'
+              : 'bg-slate-900/90 backdrop-blur-xl text-slate-300 border-slate-700/80 hover:text-white hover:bg-slate-800'
           }`}
           title="Toggle Traffic View"
         >

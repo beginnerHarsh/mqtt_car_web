@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { TelemetryPacket, VehicleState } from '../types/vehicle';
 import { lerp, lerpAngle } from '../utils/animation';
 import { ANIMATION_CONFIG, MAP_CONFIG } from '../constants/config';
+import { calculateBearing } from '../utils/geo';
 
 export interface UseVehicleReturn {
   vehicles: VehicleState[];
@@ -160,7 +161,7 @@ export function useVehicle(): UseVehicleReturn {
   }, [selectedDeviceId]);
 
   /**
-   * Set vehicle route history coordinates from external source (like DynamoDB)
+   * Set vehicle route history coordinates from external source (like DynamoDB or Trip Replay)
    */
   const setVehicleHistory = useCallback((deviceId: string, historyPoints: [number, number][]) => {
     const map = vehiclesMapRef.current;
@@ -169,8 +170,16 @@ export function useVehicle(): UseVehicleReturn {
 
     if (existing) {
       const lastPoint = historyPoints[historyPoints.length - 1];
+      const prevPoint = historyPoints.length > 1 ? historyPoints[historyPoints.length - 2] : null;
+
       const targetLat = lastPoint ? lastPoint[0] : existing.currentLat;
       const targetLng = lastPoint ? lastPoint[1] : existing.currentLng;
+
+      let heading = existing.currentHeading;
+      if (lastPoint && prevPoint) {
+        heading = calculateBearing(prevPoint[0], prevPoint[1], lastPoint[0], lastPoint[1]);
+      }
+
       map.set(deviceId, {
         ...existing,
         currentLat: targetLat,
@@ -179,6 +188,10 @@ export function useVehicle(): UseVehicleReturn {
         targetLng,
         prevLat: targetLat,
         prevLng: targetLng,
+        currentHeading: heading,
+        targetHeading: heading,
+        prevHeading: heading,
+        speed: 15,
         history: historyPoints,
       });
     } else {
@@ -197,7 +210,7 @@ export function useVehicle(): UseVehicleReturn {
         prevLat: startLat,
         prevLng: startLng,
         prevHeading: 0,
-        speed: 0,
+        speed: 15,
         lastUpdateTimestamp: now,
         packetTimestamp: Math.floor(now / 1000),
         packetCount: 0,

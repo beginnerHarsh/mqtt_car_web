@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useMQTT } from '../hooks/useMQTT';
-import { useVehicle } from '../hooks/useVehicle';
+import { useVehicle, CITY_LOCATIONS } from '../hooks/useVehicle';
 import { useDynamoStats } from '../hooks/useDynamoStats';
 import { fetchVehicleRouteHistory } from '../services/dynamoService';
 import { MapView } from '../components/MapView';
@@ -8,6 +8,10 @@ import { StatusBar } from '../components/StatusBar';
 import { HistoryReport } from '../components/HistoryReport';
 import { QuickActionsDock } from '../components/QuickActionsDock';
 import { ToastContainer } from '../components/ToastContainer';
+import { AcreageCoverageWidget } from '../components/AcreageCoverageWidget';
+import { TripReplayBar } from '../components/TripReplayBar';
+import { LiveTelemetryHUD } from '../components/LiveTelemetryHUD';
+import { findContainingGeofence } from '../utils/geo';
 
 export const Dashboard: React.FC = () => {
   const {
@@ -33,6 +37,14 @@ export const Dashboard: React.FC = () => {
   const [showRouteLine, setShowRouteLine] = useState<boolean>(true);
   const [activeView, setActiveView] = useState<string>('live');
   const [activeTab, setActiveTab] = useState<string>('Live Tracking');
+  const [implementWidth, setImplementWidth] = useState<number>(3.5);
+
+  // Trip Replay Engine States
+  const [isReplayActive, setIsReplayActive] = useState<boolean>(false);
+  const [replayPoints, setReplayPoints] = useState<[number, number][]>([]);
+
+  // Geofence status tracking ref to prevent toast spamming
+  const activeGeofenceRef = useRef<Record<string, string | null>>({});
 
   // Sync Navigation Tab selection with Active View
   useEffect(() => {
@@ -56,10 +68,23 @@ export const Dashboard: React.FC = () => {
     setSelectedDeviceId(id);
   }, [setSelectedDeviceId]);
 
-  // Route incoming telemetry packet into vehicle animation engine
+  // Route incoming telemetry packet into vehicle animation engine and test Geofence boundaries
   useEffect(() => {
     if (latestPacket) {
       updateVehicleFromPacket(latestPacket);
+
+      // Test Geofence entry/exit
+      const point: [number, number] = [latestPacket.lat, latestPacket.lng];
+      const currentZone = findContainingGeofence(point);
+      const prevZone = activeGeofenceRef.current[latestPacket.deviceId];
+
+      if (currentZone && prevZone !== currentZone.id) {
+        activeGeofenceRef.current[latestPacket.deviceId] = currentZone.id;
+        console.log(`[Geofence] ${latestPacket.deviceId} entered ${currentZone.name}`);
+      } else if (!currentZone && prevZone) {
+        activeGeofenceRef.current[latestPacket.deviceId] = null;
+        console.log(`[Geofence] ${latestPacket.deviceId} exited boundary`);
+      }
     }
   }, [latestPacket, updateVehicleFromPacket]);
 
@@ -71,13 +96,7 @@ export const Dashboard: React.FC = () => {
     setShowRouteLine((prev) => !prev);
   }, []);
 
-  const handleEmergencyAlert = useCallback(() => {
-    alert(`EMERGENCY ALERT triggered for vehicle ${selectedDeviceId || 'selected vehicle'}! Dispatch notified.`);
-  }, [selectedDeviceId]);
 
-  const handleContactDriver = useCallback(() => {
-    alert(`Initiating direct voice call to driver of ${selectedDeviceId || 'selected vehicle'}...`);
-  }, [selectedDeviceId]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-100 flex flex-col font-sans">
@@ -106,15 +125,45 @@ export const Dashboard: React.FC = () => {
               autoFollow={autoFollow}
               onToggleAutoFollow={() => setAutoFollow((prev) => !prev)}
               showRouteLine={showRouteLine}
+              implementWidthMeters={implementWidth}
+              showGeofences={true}
             />
+
+            {/* Acreage & Field Coverage Widget */}
+            <AcreageCoverageWidget
+              selectedVehicle={selectedVehicle}
+              implementWidth={implementWidth}
+              onImplementWidthChange={setImplementWidth}
+            />
+
+            {/* Live Telemetry HUD Widget (Speed, Compass, Coordinates) */}
+            <LiveTelemetryHUD
+              selectedVehicle={selectedVehicle}
+              packetsReceived={packetsReceived}
+            />
+
+            {/* Trip Replay Timeline Scrubber Widget */}
+            {isReplayActive && replayPoints.length > 0 && (
+              <TripReplayBar
+                deviceId={selectedDeviceId}
+                routePoints={replayPoints}
+                onProgressChange={(pointIndex) => {
+                  if (replayPoints[pointIndex] && selectedDeviceId) {
+                    setVehicleHistory(selectedDeviceId, replayPoints.slice(0, pointIndex + 1));
+                  }
+                }}
+                onCloseReplay={() => {
+                  setIsReplayActive(false);
+                  setReplayPoints([]);
+                }}
+              />
+            )}
 
             {/* Quick Actions Dock (Bottom Center) */}
             <QuickActionsDock
               onLocate={handleLocateVehicle}
               onToggleRoute={handleToggleRoute}
               onToggleHistory={handleToggleHistory}
-              onContact={handleContactDriver}
-              onEmergency={handleEmergencyAlert}
               isAutoFollow={autoFollow}
               isRouteVisible={showRouteLine}
               isHistoryVisible={false}
@@ -137,15 +186,35 @@ export const Dashboard: React.FC = () => {
               setSelectedDeviceId(id);
               setAutoFollow(true);
 
-              // 3. Load historical route line points from DynamoDB
+              // 3. Load historical route line points for Trip Replay (with fallback)
+              let routePoints: [number, number][] = [];
               try {
-                const routePoints = await fetchVehicleRouteHistory(id);
-                if (routePoints && routePoints.length > 0) {
-                  setVehicleHistory(id, routePoints);
-                }
+                routePoints = await fetchVehicleRouteHistory(id);
               } catch (e) {
                 console.error("Failed to load vehicle path history:", e);
               }
+
+              const veh = vehicles.find((v) => v.deviceId === id);
+              if ((!routePoints || routePoints.length < 2) && veh && veh.history && veh.history.length >= 2) {
+                routePoints = veh.history;
+              }
+
+              if (!routePoints || routePoints.length < 2) {
+                const cityLoc = CITY_LOCATIONS[id] ?? { lat: 30.733320, lng: 76.779400 };
+                routePoints = [
+                  [cityLoc.lat, cityLoc.lng],
+                  [cityLoc.lat + 0.002, cityLoc.lng + 0.001],
+                  [cityLoc.lat + 0.004, cityLoc.lng + 0.003],
+                  [cityLoc.lat + 0.005, cityLoc.lng + 0.006],
+                  [cityLoc.lat + 0.003, cityLoc.lng + 0.008],
+                  [cityLoc.lat + 0.001, cityLoc.lng + 0.005],
+                  [cityLoc.lat, cityLoc.lng],
+                ];
+              }
+
+              setVehicleHistory(id, [routePoints[0]]);
+              setReplayPoints(routePoints);
+              setIsReplayActive(true);
             }}
           />
         )}
