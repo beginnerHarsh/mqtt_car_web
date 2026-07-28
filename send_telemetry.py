@@ -33,42 +33,42 @@ AWS_SESSION_TOKEN = os.getenv('VITE_AWS_SESSION_TOKEN', '')
 REGION = os.getenv('VITE_REGION', 'us-east-1')
 TOPIC_TEMPLATE = os.getenv('VITE_MQTT_TOPIC', 'car/+/location')
 
-# Real-World Geographic Waypoint Routes for 5 Tractors across Punjab / North India
+# Real-World Geographic Waypoint Routes for 5 Farm Machinery units across Punjab / North India
 VEHICLE_ROUTES = {
-    "MAHINDRA": [
-        (30.733320, 76.779400), # Chandigarh Sector 17
+    "T_1": [
+        (30.733320, 76.779400), # Farm Machinery 1 - Chandigarh Sector 17
         (30.738000, 76.782500), # Rose Garden
         (30.742000, 76.786000), # Rock Garden
         (30.744500, 76.788500), # Sukhna Lake
         (30.740000, 76.785000), # Secretariat Road
         (30.733320, 76.779400), # Loop back
     ],
-    "JOHN_DEERE": [
-        (30.901000, 75.857300), # Ludhiana Ferozepur Road
+    "T_2": [
+        (30.901000, 75.857300), # Farm Machinery 2 - Ludhiana Ferozepur Road
         (30.903500, 75.815000), # PAU Campus Gate 1
         (30.906000, 75.808000), # PAU Agri Experimental Fields
         (30.910000, 75.812000), # Sidhwan Canal Road
         (30.906500, 75.845000), # Aarti Chowk
         (30.901000, 75.857300), # Loop back
     ],
-    "SWARAJ": [
-        (30.704600, 76.717900), # Mohali Phase 7 Market
+    "T_3": [
+        (30.704600, 76.717900), # Farm Machinery 3 - Mohali Phase 7 Market
         (30.697000, 76.731000), # PCA Cricket Stadium Mohali
         (30.678000, 76.735000), # IT City Expressway
         (30.665000, 76.722000), # Aerocity Boulevard
         (30.688000, 76.705000), # Fortis Hospital Chowk
         (30.704600, 76.717900), # Loop back
     ],
-    "SONALIKA": [
-        (31.530300, 75.911500), # Hoshiarpur City Centre
+    "T_4": [
+        (31.530300, 75.911500), # Farm Machinery 4 - Hoshiarpur City Centre
         (31.535000, 75.920000), # GT Road Bypass Junction
         (31.542000, 75.931000), # Sonalika Tractor Manufacturing Complex
         (31.548000, 75.925000), # Hoshiarpur Industrial Estate
         (31.538000, 75.905000), # Phagwara Highway Link
         (31.530300, 75.911500), # Loop back
     ],
-    "FARMTRAC": [
-        (31.634000, 74.872300), # Amritsar Heritage Street
+    "T_5": [
+        (31.634000, 74.872300), # Farm Machinery 5 - Amritsar Heritage Street
         (31.620000, 74.876500), # Golden Temple Peripheral Ring
         (31.628000, 74.890000), # GT Road Junction
         (31.645000, 74.885000), # Ranjit Avenue
@@ -229,17 +229,13 @@ def main():
         client.loop_stop()
         sys.exit(1)
 
-    # Simulation variables for 5 field tractors across 5 Indian cities
+    # Simulation variables: Transmit live field telemetry exclusively for T_3 (Farm Machinery 3)
     vehicles_state = [
-        {"deviceId": "MAHINDRA", "wp_idx": 0, "progress": 0.0, "base_speed": 22},
-        {"deviceId": "JOHN_DEERE", "wp_idx": 0, "progress": 0.1, "base_speed": 26},
-        {"deviceId": "SWARAJ", "wp_idx": 0, "progress": 0.2, "base_speed": 20},
-        {"deviceId": "SONALIKA", "wp_idx": 0, "progress": 0.0, "base_speed": 28},
-        {"deviceId": "FARMTRAC", "wp_idx": 0, "progress": 0.15, "base_speed": 24},
+        {"deviceId": "T_3", "wp_idx": 0, "progress": 0.0, "base_speed": 22},
     ]
     update_interval_sec = 1.0
 
-    print(f"\nStarting telemetry transmission for 5 tractors in 5 cities on topic template '{TOPIC_TEMPLATE}'...")
+    print(f"\nStarting live telemetry transmission exclusively for device 'T_3' on topic template '{TOPIC_TEMPLATE}'...")
     print("Press Ctrl+C to stop.\n")
 
     try:
@@ -291,10 +287,9 @@ def main():
                 payload = {
                     "Device_ID": device_id,
                     "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Latitude": f"{lat:.6f}",
-                    "Longitude": f"{lng:.6f}",
-                    "RunningTime": str(int(segment_progress * 100)),
-                    "RunningStatus": "On" if current_speed > 0 else "Off"
+                    "Latitude": f"{lat:.5f}",
+                    "Longitude": f"{lng:.5f}",
+                    "BatteryVoltage": "3"
                 }
 
                 payload_str = json.dumps(payload)

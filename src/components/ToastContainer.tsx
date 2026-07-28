@@ -49,6 +49,17 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismis
           <div className="flex-1 font-sans">
             <div className="text-xs font-bold text-slate-100">{toast.title}</div>
             <div className="text-[11px] text-slate-300 mt-0.5 leading-snug">{toast.message}</div>
+            {toast.actionLabel && toast.onAction && (
+              <button
+                onClick={() => {
+                  toast.onAction?.();
+                  onDismiss(toast.id);
+                }}
+                className="mt-2 text-[10px] font-extrabold font-mono bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded-lg shadow-md transition-all active:scale-95 flex items-center gap-1"
+              >
+                🎯 {toast.actionLabel}
+              </button>
+            )}
           </div>
           <button
             onClick={() => onDismiss(toast.id)}

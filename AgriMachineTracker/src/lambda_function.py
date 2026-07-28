@@ -54,25 +54,31 @@ def lambda_handler(event, context):
         else:
             payload = event
 
-        # Safely extract fields with support for both real GPS device and simulator keys
+        # Safely extract fields from the final MQTT payload
         device_id = payload.get("Device_ID") or payload.get("deviceId")
         timestamp_raw = payload.get("Timestamp") or payload.get("timestamp")
         start_time = payload.get("StartTime") or payload.get("startTime") or timestamp_raw
         latitude_raw = payload.get("Latitude") or payload.get("lat")
         longitude_raw = payload.get("Longitude") or payload.get("lng")
-        speed_raw = payload.get("Speed") or payload.get("speed")
-        running_status = payload.get("RunningStatus") or payload.get("runningStatus")
-        running_time = payload.get("RunningTime") or payload.get("runningTime")
+        battery_voltage_raw = payload.get("BatteryVoltage") or payload.get("batteryVoltage")
 
         if not device_id or timestamp_raw is None:
             raise KeyError("Payload must contain device ID and timestamp")
 
-        # Parse timestamp (can be epoch numeric or formatted YYYY-MM-DD HH:MM:SS string)
+        # Map friendly name for logging (e.g., T_1 -> Farm Machinery 1)
+        friendly_name = device_id
+        if str(device_id).startswith("T_") or str(device_id).startswith("T-"):
+            num = str(device_id)[2:]
+            friendly_name = f"Farm Machinery {num}"
+        print(f"Processing telemetry for {device_id} ({friendly_name})")
+
+        # Parse timestamp (can be epoch numeric or formatted YYYY-MM-DD HH:MM:SS / ISO string)
         try:
             timestamp = float(timestamp_raw)
         except (ValueError, TypeError):
             try:
-                dt = datetime.strptime(str(timestamp_raw).strip(), "%Y-%m-%d %H:%M:%S")
+                ts_str = str(timestamp_raw).strip().replace('T', ' ')
+                dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
                 timestamp = dt.timestamp()
             except Exception as e:
                 raise ValueError(f"Could not parse timestamp: {timestamp_raw}. Error: {e}")
@@ -113,29 +119,25 @@ def lambda_handler(event, context):
             if longitude is None:
                 longitude = 76.7794
 
-        # Parse speed (float conversion)
-        speed = 0.0
-        if speed_raw is not None and str(speed_raw).strip() != "":
-            try:
-                speed = float(speed_raw)
-            except ValueError:
-                pass
+        # Parse Battery Voltage
+        battery_voltage = str(battery_voltage_raw).strip() if battery_voltage_raw is not None else None
 
-        # Convert timestamp to string key format to match DynamoDB key schema (expected S type)
-        str_timestamp = str(int(timestamp))
+        # 1. Save exact raw payload to AgriMachine_Tracker_Data table without timestamp conversion
+        item = dict(payload)
+        item["Device_ID"] = str(device_id)
+        item["Timestamp"] = str(timestamp_raw) # Preserve raw human timestamp string from payload
+        if latitude is not None:
+            item["Latitude"] = Decimal(str(latitude))
+        if longitude is not None:
+            item["Longitude"] = Decimal(str(longitude))
+        if battery_voltage is not None:
+            item["BatteryVoltage"] = str(battery_voltage)
 
-        # 1. Save raw telemetry record for historical path drawing
-        item = {
-            "Device_ID": device_id,
-            "Timestamp": str_timestamp,
-            "StartTime": str(start_time),
-            "Latitude": latitude,
-            "Longitude": longitude
-        }
         item = decimal_converter(item)
         table.put_item(Item=item)
 
         # 2. Update real-time summary statistics
+        speed = 0.0
         if stats_item:
             # Extract previous state
             total_distance = float(stats_item.get("Total_Distance", 0.0))
@@ -153,12 +155,12 @@ def lambda_handler(event, context):
             if last_lat is not None and last_lng is not None:
                 delta_d = calculate_haversine_distance(last_lat, last_lng, latitude, longitude)
 
-            # Auto calculate speed from displacement if not provided by device
-            if speed_raw is None and delta_t > 0:
+            # Auto calculate speed from displacement
+            if delta_t > 0:
                 speed = (delta_d / delta_t) * 3.6
 
-            # Determine activity state
-            is_active = (running_status == "On") if running_status is not None else (speed > 2.0)
+            # Determine activity state (active if vehicle moved > 2 meters or speed > 2 km/h)
+            is_active = (delta_d > 2.0 or speed > 2.0)
 
             # Update stats if delta_t is valid (e.g. positive and less than 1 hour)
             if 0 < delta_t < 3600:
@@ -171,23 +173,25 @@ def lambda_handler(event, context):
             status = "moving" if is_active else "idle"
         else:
             # First time seeing this device
-            is_active = (running_status == "On") if running_status is not None else (speed > 2.0)
             total_distance = 0.0
             active_duration = 0.0
             idle_duration = 0.0
-            status = "moving" if is_active else "idle"
+            status = "moving"
 
         # Save back updated summary stats
         new_stats = {
-            "Device_ID": device_id,
-            "Total_Distance": total_distance,
-            "Active_Duration": active_duration,
-            "Idle_Duration": idle_duration,
-            "Last_Latitude": latitude,
-            "Last_Longitude": longitude,
-            "Last_Timestamp": timestamp,
-            "Last_Status": status
+            "Device_ID": str(device_id),
+            "Total_Distance": Decimal(str(round(total_distance, 4))),
+            "Active_Duration": Decimal(str(round(active_duration, 2))),
+            "Idle_Duration": Decimal(str(round(idle_duration, 2))),
+            "Last_Latitude": Decimal(str(latitude)),
+            "Last_Longitude": Decimal(str(longitude)),
+            "Last_Timestamp": Decimal(str(round(timestamp, 2))),
+            "Last_Status": str(status)
         }
+        if battery_voltage is not None:
+            new_stats["Last_BatteryVoltage"] = str(battery_voltage)
+
         new_stats = decimal_converter(new_stats)
         
         try:

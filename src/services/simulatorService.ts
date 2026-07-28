@@ -108,6 +108,7 @@ export class SimulatorService {
       speed: currentSpeed,
       heading: Math.round(heading),
       timestamp: Math.floor(Date.now() / 1000),
+      batteryVoltage: '3',
     };
 
     this.listeners.forEach((listener) => listener(packet));

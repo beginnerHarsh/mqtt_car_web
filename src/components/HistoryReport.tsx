@@ -1,5 +1,6 @@
 import React from 'react';
 import { VehicleStats } from '../services/dynamoService';
+import { formatVehicleName } from '../utils/vehicleName';
 import { ArrowLeft, RefreshCw, Gauge, Clock, ShieldAlert, Play } from 'lucide-react';
 
 interface HistoryReportProps {
@@ -18,12 +19,7 @@ export const HistoryReport: React.FC<HistoryReportProps> = ({
   loading = false,
 }) => {
   const getVehicleName = (id: string) => {
-    if (id === 'MAHINDRA') return 'Mahindra';
-    if (id === 'JOHN_DEERE') return 'John Deere';
-    if (id === 'SWARAJ') return 'Swaraj';
-    if (id === 'SONALIKA') return 'Sonalika';
-    if (id === 'FARMTRAC') return 'Farmtrac';
-    return id;
+    return formatVehicleName(id);
   };
 
   const getVehicleImg = (_id: string) => {

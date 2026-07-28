@@ -15,14 +15,6 @@ import { findContainingGeofence } from '../utils/geo';
 
 export const Dashboard: React.FC = () => {
   const {
-    connectionStatus,
-    latestPacket,
-    packetsReceived,
-    toasts,
-    dismissToast,
-  } = useMQTT();
-
-  const {
     vehicles,
     selectedVehicle,
     selectedDeviceId,
@@ -31,7 +23,24 @@ export const Dashboard: React.FC = () => {
     setVehicleHistory,
   } = useVehicle();
 
-  const { allStats, refresh: refreshStats } = useDynamoStats(selectedDeviceId, packetsReceived);
+  // Track active machine callback for Toast action button
+  const handleTrackVehicle = useCallback((id: string) => {
+    setSelectedDeviceId(id);
+    setAutoFollow(true);
+    setActiveView('live');
+    setActiveTab('Live Tracking');
+  }, [setSelectedDeviceId]);
+
+  const {
+    connectionStatus,
+    latestPacket,
+    packetsReceived,
+    toasts,
+    dismissToast,
+  } = useMQTT(handleTrackVehicle);
+
+  const activeVehicleIds = React.useMemo(() => vehicles.map((v) => v.deviceId), [vehicles]);
+  const { allStats, refresh: refreshStats } = useDynamoStats(selectedDeviceId, packetsReceived, activeVehicleIds);
 
   const [autoFollow, setAutoFollow] = useState<boolean>(true);
   const [showRouteLine, setShowRouteLine] = useState<boolean>(true);
@@ -68,10 +77,15 @@ export const Dashboard: React.FC = () => {
     setSelectedDeviceId(id);
   }, [setSelectedDeviceId]);
 
-  // Route incoming telemetry packet into vehicle animation engine and test Geofence boundaries
+  // Route incoming telemetry packet into vehicle animation engine, auto-select if unselected, and test Geofence boundaries
   useEffect(() => {
     if (latestPacket) {
       updateVehicleFromPacket(latestPacket);
+
+      // Auto-select first active vehicle if none currently selected
+      if (!selectedDeviceId) {
+        setSelectedDeviceId(latestPacket.deviceId);
+      }
 
       // Test Geofence entry/exit
       const point: [number, number] = [latestPacket.lat, latestPacket.lng];
@@ -86,7 +100,7 @@ export const Dashboard: React.FC = () => {
         console.log(`[Geofence] ${latestPacket.deviceId} exited boundary`);
       }
     }
-  }, [latestPacket, updateVehicleFromPacket]);
+  }, [latestPacket, updateVehicleFromPacket, selectedDeviceId, setSelectedDeviceId]);
 
   const handleLocateVehicle = useCallback(() => {
     setAutoFollow(true);

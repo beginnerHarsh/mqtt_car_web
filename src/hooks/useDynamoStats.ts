@@ -4,12 +4,14 @@ import { fetchVehicleStats, VehicleStats } from '../services/dynamoService';
 export function useDynamoStats(
   selectedDeviceId: string, 
   _packetsReceived: number, 
-  allDeviceIds: string[] = ['MAHINDRA', 'JOHN_DEERE', 'SWARAJ', 'SONALIKA', 'FARMTRAC']
+  allDeviceIds: string[] = []
 ) {
   const [stats, setStats] = useState<VehicleStats | null>(null);
   const [allStats, setAllStats] = useState<Record<string, VehicleStats>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const deviceIdsKey = allDeviceIds.join(',');
 
   const loadStats = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -28,8 +30,11 @@ export function useDynamoStats(
       }
 
       // 2. Fetch all vehicles stats in parallel
+      const idsToFetch = deviceIdsKey ? deviceIdsKey.split(',') : [];
+      if (idsToFetch.length === 0) return;
+
       const results = await Promise.all(
-        allDeviceIds.map(async (id) => {
+        idsToFetch.map(async (id) => {
           try {
             const data = await fetchVehicleStats(id);
             return { id, data };
@@ -55,9 +60,9 @@ export function useDynamoStats(
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [selectedDeviceId, allDeviceIds]);
+  }, [selectedDeviceId, deviceIdsKey]);
 
-  // Load stats initially and on vehicle selection change
+  // Load stats initially and on vehicle selection / device list change
   useEffect(() => {
     loadStats(true);
   }, [loadStats]);

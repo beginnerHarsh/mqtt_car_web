@@ -8,6 +8,7 @@ export interface TelemetryPacket {
   speed: number;       // speed in km/h
   heading: number;     // heading in degrees (0 - 359)
   timestamp: number;   // UNIX timestamp in seconds or milliseconds
+  batteryVoltage?: number | string; // Battery voltage (e.g., "3" or 3.7)
 }
 
 /**
@@ -33,6 +34,8 @@ export interface VehicleState {
 
   // Telemetry metrics
   speed: number;
+  batteryVoltage?: number | string;
+  isOnline?: boolean;
   lastUpdateTimestamp: number; // local time when update arrived
   packetTimestamp: number;     // device time from payload
   packetCount: number;
@@ -59,6 +62,8 @@ export interface NotificationToast {
   title: string;
   message: string;
   timestamp: number;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 /**

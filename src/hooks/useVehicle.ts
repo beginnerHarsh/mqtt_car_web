@@ -13,54 +13,24 @@ export interface UseVehicleReturn {
   setVehicleHistory: (deviceId: string, historyPoints: [number, number][]) => void;
 }
 
-// Real-world initial coordinates for 5 tractor brands across 5 cities in North India
+// Real-world initial coordinates for Farm Machinery (T_1 to T_5) across 5 cities in North India
 export const CITY_LOCATIONS: Record<string, { city: string; lat: number; lng: number }> = {
-  MAHINDRA:   { city: 'Chandigarh',  lat: 30.733320, lng: 76.779400 },
-  JOHN_DEERE: { city: 'Ludhiana',    lat: 30.901000, lng: 75.857300 },
-  SWARAJ:     { city: 'Mohali',      lat: 30.704600, lng: 76.717900 },
-  SONALIKA:   { city: 'Hoshiarpur',  lat: 31.530300, lng: 75.911500 },
-  FARMTRAC:   { city: 'Amritsar',    lat: 31.634000, lng: 74.872300 },
+  T_1: { city: 'Chandigarh',  lat: 30.733320, lng: 76.779400 },
+  T_2: { city: 'Ludhiana',    lat: 30.901000, lng: 75.857300 },
+  T_3: { city: 'Mohali',      lat: 30.704600, lng: 76.717900 },
+  T_4: { city: 'Hoshiarpur',  lat: 31.530300, lng: 75.911500 },
+  T_5: { city: 'Amritsar',    lat: 31.634000, lng: 74.872300 },
 };
 
-function createDefaultVehicles(): Map<string, VehicleState> {
-  const map = new Map<string, VehicleState>();
-  const now = Date.now();
-
-  Object.entries(CITY_LOCATIONS).forEach(([id, loc]) => {
-    map.set(id, {
-      deviceId: id,
-      currentLat: loc.lat,
-      currentLng: loc.lng,
-      currentHeading: 0,
-      targetLat: loc.lat,
-      targetLng: loc.lng,
-      targetHeading: 0,
-      prevLat: loc.lat,
-      prevLng: loc.lng,
-      prevHeading: 0,
-      speed: 0,
-      lastUpdateTimestamp: now,
-      packetTimestamp: Math.floor(now / 1000),
-      packetCount: 0,
-      animationStartTime: now,
-      animationDuration: 1000,
-      history: [[loc.lat, loc.lng]],
-    });
-  });
-
-  return map;
-}
 
 export function useVehicle(): UseVehicleReturn {
-  // Initialize state with default fleet vehicles across cities
-  const [vehicles, setVehicles] = useState<VehicleState[]>(() =>
-    Array.from(createDefaultVehicles().values())
-  );
-  // Vehicle selection state (initially empty until user selects a vehicle)
+  // Initialize state with dynamic fleet vehicles array (initially empty)
+  const [vehicles, setVehicles] = useState<VehicleState[]>([]);
+  // Vehicle selection state (initially empty until telemetry arrives or user selects a vehicle)
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
 
   // Internal mutable ref for smooth 60fps frame loop without React re-render overhead
-  const vehiclesMapRef = useRef<Map<string, VehicleState>>(createDefaultVehicles());
+  const vehiclesMapRef = useRef<Map<string, VehicleState>>(new Map());
   const animationFrameIdRef = useRef<number | null>(null);
 
   /**
@@ -88,6 +58,8 @@ export function useVehicle(): UseVehicleReturn {
         prevLng: packet.lng,
         prevHeading: packet.heading,
         speed: isSelected ? packet.speed : 0,
+        batteryVoltage: packet.batteryVoltage,
+        isOnline: true,
         lastUpdateTimestamp: now,
         packetTimestamp: packet.timestamp,
         packetCount: 1,
@@ -109,6 +81,8 @@ export function useVehicle(): UseVehicleReturn {
           targetLng: packet.lng,
           currentHeading: packet.heading,
           speed: 0,
+          batteryVoltage: packet.batteryVoltage ?? existing.batteryVoltage,
+          isOnline: true,
           lastUpdateTimestamp: now,
           packetTimestamp: packet.timestamp,
           packetCount: existing.packetCount + 1,
@@ -144,6 +118,8 @@ export function useVehicle(): UseVehicleReturn {
           targetLng: packet.lng,
           targetHeading: packet.heading,
           speed: packet.speed,
+          batteryVoltage: packet.batteryVoltage ?? existing.batteryVoltage,
+          isOnline: true,
           lastUpdateTimestamp: now,
           packetTimestamp: packet.timestamp,
           packetCount: existing.packetCount + 1,

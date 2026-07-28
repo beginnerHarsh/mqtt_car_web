@@ -22,23 +22,23 @@ function create3DTractorIconHtml(deviceId: string, heading: number, speed: numbe
   let brandColorEnd = '#991b1b';
   let borderStroke = '#f87171';
   
-  if (deviceId === 'MAHINDRA') {
+  if (deviceId === 'T_1' || deviceId === 'MAHINDRA') {
     brandColorStart = '#ef4444';
     brandColorEnd = '#991b1b';
     borderStroke = '#f87171';
-  } else if (deviceId === 'JOHN_DEERE') {
+  } else if (deviceId === 'T_2' || deviceId === 'JOHN_DEERE') {
     brandColorStart = '#22c55e';
     brandColorEnd = '#15803d';
     borderStroke = '#4ade80';
-  } else if (deviceId === 'SWARAJ') {
+  } else if (deviceId === 'T_3' || deviceId === 'SWARAJ') {
     brandColorStart = '#3b82f6';
     brandColorEnd = '#1d4ed8';
     borderStroke = '#60a5fa';
-  } else if (deviceId === 'SONALIKA') {
-    brandColorStart = '#2563eb';
-    brandColorEnd = '#1e3a8a';
-    borderStroke = '#3b82f6';
-  } else if (deviceId === 'FARMTRAC') {
+  } else if (deviceId === 'T_4' || deviceId === 'SONALIKA') {
+    brandColorStart = '#8b5cf6';
+    brandColorEnd = '#5b21b6';
+    borderStroke = '#a78bfa';
+  } else if (deviceId === 'T_5' || deviceId === 'FARMTRAC') {
     brandColorStart = '#0ea5e9';
     brandColorEnd = '#0369a1';
     borderStroke = '#38bdf8';

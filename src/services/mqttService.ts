@@ -195,6 +195,8 @@ export class MQTTService {
         speed = typeof rawSpeed === 'number' ? rawSpeed : parseFloat(rawSpeed);
       } else if (parsed.RunningStatus === 'On') {
         speed = 22; // default active speed in km/h if running engine
+      } else {
+        speed = 20; // default speed for active telemetry updates
       }
 
       // Extract heading
@@ -204,14 +206,16 @@ export class MQTTService {
         heading = typeof rawHeading === 'number' ? rawHeading : parseFloat(rawHeading);
       }
 
-      // Extract timestamp (handling numeric epoch or formatted string dates)
+      // Extract timestamp (handling numeric epoch or formatted string dates like "2026-07-27 19:18:16")
       let timestamp = Math.floor(Date.now() / 1000);
       const rawTimestamp = parsed.Timestamp !== undefined ? parsed.Timestamp : parsed.timestamp;
       if (rawTimestamp !== undefined && rawTimestamp !== null && rawTimestamp !== '') {
         if (typeof rawTimestamp === 'number') {
           timestamp = rawTimestamp;
         } else {
-          const date = new Date(rawTimestamp);
+          // Parse string date e.g. "2026-07-27 19:18:16" or ISO
+          const normalizedStr = String(rawTimestamp).replace(' ', 'T');
+          const date = new Date(normalizedStr);
           if (!isNaN(date.getTime())) {
             timestamp = Math.floor(date.getTime() / 1000);
           } else {
@@ -221,6 +225,11 @@ export class MQTTService {
         }
       }
 
+      // Extract Battery Voltage (e.g., "3" or 3.7)
+      const batteryVoltage = parsed.BatteryVoltage !== undefined
+        ? parsed.BatteryVoltage
+        : parsed.batteryVoltage;
+
       const packet: TelemetryPacket = {
         deviceId,
         lat,
@@ -228,6 +237,7 @@ export class MQTTService {
         speed,
         heading,
         timestamp,
+        batteryVoltage,
       };
 
       this.messageListeners.forEach((listener) => listener(topic, packet));

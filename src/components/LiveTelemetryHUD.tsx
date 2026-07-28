@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { VehicleState } from '../types/vehicle';
 import { getHeadingCardinal, formatCoordinate } from '../utils/geo';
-import { Gauge, Compass, MapPin, Copy, Check, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { formatVehicleName } from '../utils/vehicleName';
+import { Gauge, Compass, MapPin, Copy, Check, ChevronDown, ChevronUp, Zap, Battery } from 'lucide-react';
 
 interface LiveTelemetryHUDProps {
   selectedVehicle: VehicleState | null;
@@ -20,6 +21,8 @@ export const LiveTelemetryHUD: React.FC<LiveTelemetryHUDProps> = ({
   const cardinalDir = getHeadingCardinal(selectedVehicle.currentHeading);
   const headingDeg = Math.round(selectedVehicle.currentHeading);
   const speedKm = Math.round(selectedVehicle.speed);
+  const batteryVoltage = selectedVehicle.batteryVoltage ?? '3';
+  const displayName = formatVehicleName(selectedVehicle.deviceId);
 
   const handleCopyCoords = () => {
     const coordsStr = `${formatCoordinate(selectedVehicle.currentLat)}, ${formatCoordinate(selectedVehicle.currentLng)}`;
@@ -41,7 +44,7 @@ export const LiveTelemetryHUD: React.FC<LiveTelemetryHUDProps> = ({
           </div>
           <div>
             <h4 className="font-extrabold text-xs tracking-wide text-white uppercase font-mono">
-              Live HUD: {selectedVehicle.deviceId}
+              Live HUD: {displayName} ({selectedVehicle.deviceId})
             </h4>
             <span className="text-[10px] text-slate-400 font-medium font-mono">
               Packets: {packetsReceived} • Telemetry Stream
@@ -79,6 +82,18 @@ export const LiveTelemetryHUD: React.FC<LiveTelemetryHUDProps> = ({
                 <span className="text-2xl font-black text-white font-mono">{cardinalDir}</span>
                 <span className="text-[10px] font-semibold text-emerald-400">({headingDeg}°)</span>
               </div>
+            </div>
+          </div>
+
+          {/* Battery Voltage Bar */}
+          <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <Battery className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Battery Voltage</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-sm font-black text-amber-400 font-mono">{batteryVoltage}</span>
+              <span className="text-[10px] font-semibold text-slate-400">V</span>
             </div>
           </div>
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { ConnectionStatus, VehicleState } from '../types/vehicle';
 import { Radio } from 'lucide-react';
 import { CITY_LOCATIONS } from '../hooks/useVehicle';
+import { formatVehicleName } from '../utils/vehicleName';
 
 interface StatusBarProps {
   status: ConnectionStatus;
@@ -23,9 +24,11 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 }) => {
   const navItems = ['Home', 'Live Tracking', 'History'];
 
+  const activeCount = vehicles.filter((v) => v.packetCount > 0 || v.isOnline).length;
+
   return (
     <header className="flex justify-between items-center w-full px-6 py-3 sticky top-0 z-50 bg-slate-900/90 backdrop-blur-xl border-b border-slate-800/80 shadow-2xl h-16 font-sans">
-      {/* Brand Title & Vehicle Selector */}
+      {/* Brand Title, Active Badge & Vehicle Selector */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2.5">
           <div className="p-2 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-emerald-500 text-white shadow-lg shadow-blue-500/30">
@@ -38,19 +41,30 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
         <div className="h-6 w-px bg-slate-800 mx-1 hidden sm:block" />
 
+        {/* Active Machines Live Counter Badge */}
+        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+          Active: {activeCount} Live Machines
+        </div>
+
         {/* Vehicle Selection Dropdown */}
         <select
           value={selectedVehicle?.deviceId ?? ''}
           onChange={(e) => onSelectVehicle(e.target.value)}
           className="text-xs font-bold font-mono bg-slate-800/90 border border-slate-700/80 text-white rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer shadow-md"
         >
-          <option value="" className="bg-slate-900 text-slate-300">🎯 Select Vehicle to Track Live</option>
+          <option value="" className="bg-slate-900 text-slate-300">
+            {vehicles.length === 0 ? '📡 Waiting for active devices in field...' : '🎯 Select Machine to Track Live'}
+          </option>
           {vehicles.map((v) => {
             const cityName = CITY_LOCATIONS[v.deviceId]?.city ?? v.deviceId;
+            const displayName = formatVehicleName(v.deviceId);
             const isLive = v.deviceId === selectedVehicle?.deviceId;
+            const isSendingTelemetry = (v.packetCount > 0) || v.isOnline;
+            const statusTag = isSendingTelemetry ? '🟢 LIVE IN FIELD' : '⚪ Standby';
             return (
               <option key={v.deviceId} value={v.deviceId} className="bg-slate-900 text-white">
-                🚘 {v.deviceId} ({cityName}) {isLive ? '• Live Tracking' : ''}
+                🚜 {displayName} ({v.deviceId}) - {cityName} [{statusTag}] {isLive ? '• Tracking' : ''}
               </option>
             );
           })}
