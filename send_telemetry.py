@@ -75,6 +75,9 @@ VEHICLE_ROUTES = {
         (31.640000, 74.865000), # Court Road
         (31.634000, 74.872300), # Loop back
     ],
+    "T_10": [
+        (30.958060, 76.520890), # Farm Machinery 10 - Chhoti Haveli, Rupnagar, Punjab
+    ],
 }
 
 DEVICE_IDS = list(VEHICLE_ROUTES.keys())
@@ -229,72 +232,33 @@ def main():
         client.loop_stop()
         sys.exit(1)
 
-    # Simulation variables: Transmit live field telemetry exclusively for T_3 (Farm Machinery 3)
+    # Simulation variables: Transmit telemetry for device T_10 at 1 minute interval (60 seconds)
     vehicles_state = [
-        {"deviceId": "T_3", "wp_idx": 0, "progress": 0.0, "base_speed": 22},
+        {"deviceId": "T_10", "lat": 30.95806, "lng": 76.52089},
     ]
-    update_interval_sec = 1.0
+    update_interval_sec = 60.0
 
-    print(f"\nStarting live telemetry transmission exclusively for device 'T_3' on topic template '{TOPIC_TEMPLATE}'...")
+    print(f"\nStarting live telemetry transmission for device 'T_10' at (30.95806, 76.52089) every 60 seconds on topic '{TOPIC_TEMPLATE}'...")
     print("Press Ctrl+C to stop.\n")
 
     try:
         while True:
             for veh in vehicles_state:
                 device_id = veh["deviceId"]
-                current_wp_idx = veh["wp_idx"]
-                segment_progress = veh["progress"]
-                base_speed_kmh = veh["base_speed"]
-
-                route = VEHICLE_ROUTES[device_id]
-
-                # Route logic
-                current_wp = route[current_wp_idx]
-                next_wp_idx = (current_wp_idx + 1) % len(route)
-                next_wp = route[next_wp_idx]
-
-                distance_m = calculate_distance_meters(
-                    current_wp[0], current_wp[1],
-                    next_wp[0], next_wp[1]
-                )
-                heading = calculate_bearing(
-                    current_wp[0], current_wp[1],
-                    next_wp[0], next_wp[1]
-                )
-
-                speed_ms = (base_speed_kmh * 1000.0) / 3600.0
-                step_fraction = speed_ms / max(distance_m, 10.0)
-
-                segment_progress += step_fraction
-
-                if segment_progress >= 1.0:
-                    segment_progress = 0.0
-                    current_wp_idx = next_wp_idx
-
-                # Save updated state
-                veh["wp_idx"] = current_wp_idx
-                veh["progress"] = segment_progress
-
-                wp_a = route[current_wp_idx]
-                wp_b = route[(current_wp_idx + 1) % len(route)]
-
-                lat = wp_a[0] + (wp_b[0] - wp_a[0]) * segment_progress
-                lng = wp_a[1] + (wp_b[1] - wp_a[1]) * segment_progress
-
-                speed_noise = (random.random() - 0.5) * 4
-                current_speed = max(5, int(base_speed_kmh + speed_noise))
+                lat = veh["lat"]
+                lng = veh["lng"]
 
                 payload = {
                     "Device_ID": device_id,
                     "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "Latitude": f"{lat:.5f}",
                     "Longitude": f"{lng:.5f}",
-                    "BatteryVoltage": "3"
+                    "BatteryVoltage": "3.7"
                 }
 
                 payload_str = json.dumps(payload)
                 topic = TOPIC_TEMPLATE.replace('+', device_id)
-                print(f"Publishing [{device_id}]: {payload_str}")
+                print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Publishing [{device_id}]: {payload_str}")
 
                 client.publish(
                     topic=topic,

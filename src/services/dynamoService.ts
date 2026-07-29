@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, QueryCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { APP_CONFIG } from "../constants/config";
 
 // Initialize DynamoDB Client
@@ -22,6 +22,7 @@ export interface VehicleStats {
   Last_Status: string;      // 'moving' or 'idle'
   Last_Latitude?: number;
   Last_Longitude?: number;
+  Last_Location?: string;
   Last_Timestamp?: number;
 }
 
@@ -46,6 +47,38 @@ export async function fetchVehicleStats(deviceId: string): Promise<VehicleStats 
   } catch (error) {
     console.error(`[DynamoDB] Error fetching summary stats for ${deviceId}:`, error);
     return null;
+  }
+}
+
+/**
+ * Fetch all vehicle summary stats from AgriMachine_Stats_Summary
+ */
+export async function fetchAllVehicleStats(): Promise<Record<string, VehicleStats>> {
+  if (!APP_CONFIG.awsAccessKeyId || !APP_CONFIG.awsSecretAccessKey) {
+    console.warn("[DynamoDB] AWS credentials missing. Skipping scan.");
+    return {};
+  }
+
+  try {
+    const response = await docClient.send(
+      new ScanCommand({
+        TableName: "AgriMachine_Stats_Summary",
+      })
+    );
+
+    const statsMap: Record<string, VehicleStats> = {};
+    if (response.Items) {
+      response.Items.forEach((item: Record<string, any>) => {
+        const stats = item as VehicleStats;
+        if (stats.Device_ID) {
+          statsMap[stats.Device_ID] = stats;
+        }
+      });
+    }
+    return statsMap;
+  } catch (error) {
+    console.error("[DynamoDB] Error scanning all vehicle stats:", error);
+    return {};
   }
 }
 

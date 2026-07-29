@@ -20,6 +20,7 @@ export const CITY_LOCATIONS: Record<string, { city: string; lat: number; lng: nu
   T_3: { city: 'Mohali',      lat: 30.704600, lng: 76.717900 },
   T_4: { city: 'Hoshiarpur',  lat: 31.530300, lng: 75.911500 },
   T_5: { city: 'Amritsar',    lat: 31.634000, lng: 74.872300 },
+  T_10: { city: 'Rupnagar',   lat: 30.958060, lng: 76.520890 },
 };
 
 

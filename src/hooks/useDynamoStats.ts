@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchVehicleStats, VehicleStats } from '../services/dynamoService';
+import { fetchVehicleStats, fetchAllVehicleStats, VehicleStats } from '../services/dynamoService';
+
+const DEFAULT_DEVICE_IDS = ['T_1', 'T_2', 'T_3', 'T_4', 'T_5', 'T_10'];
 
 export function useDynamoStats(
   selectedDeviceId: string, 
@@ -29,12 +31,15 @@ export function useDynamoStats(
         }
       }
 
-      // 2. Fetch all vehicles stats in parallel
-      const idsToFetch = deviceIdsKey ? deviceIdsKey.split(',') : [];
-      if (idsToFetch.length === 0) return;
+      // 2. Scan all vehicle stats directly from DynamoDB table
+      const scannedStats = await fetchAllVehicleStats();
 
-      const results = await Promise.all(
-        idsToFetch.map(async (id) => {
+      // 3. Fallback: Fetch explicit IDs (default T_1..T_5 + active IDs)
+      const passedIds = deviceIdsKey ? deviceIdsKey.split(',') : [];
+      const idsSet = new Set([...DEFAULT_DEVICE_IDS, ...passedIds]);
+
+      const directResults = await Promise.all(
+        Array.from(idsSet).map(async (id) => {
           try {
             const data = await fetchVehicleStats(id);
             return { id, data };
@@ -45,10 +50,10 @@ export function useDynamoStats(
         })
       );
 
-      // Merge new data with previous state to prevent flickering
+      // Merge new data with previous state
       setAllStats((prev) => {
-        const updated = { ...prev };
-        results.forEach(({ id, data }) => {
+        const updated = { ...prev, ...scannedStats };
+        directResults.forEach(({ id, data }) => {
           if (data) {
             updated[id] = data;
           }
@@ -69,14 +74,12 @@ export function useDynamoStats(
 
   // Periodic polling every 5 seconds to get updated distance & active hours
   useEffect(() => {
-    if (!selectedDeviceId) return;
-    
     const interval = setInterval(() => {
       loadStats(false); // Silent reload in background
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [selectedDeviceId, loadStats]);
+  }, [loadStats]);
 
   return { stats, allStats, loading, error, refresh: () => loadStats(true) };
 }

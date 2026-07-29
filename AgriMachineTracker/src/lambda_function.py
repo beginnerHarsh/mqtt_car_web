@@ -1,6 +1,7 @@
 import json
 import boto3
 import math
+import urllib.request
 from decimal import Decimal
 from datetime import datetime
 
@@ -45,6 +46,36 @@ def calculate_haversine_distance(lat1, lon1, lat2, lon2):
         return 0.0
 
 
+def get_real_location(lat, lon):
+    """
+    Fetch human-readable location address based on Latitude and Longitude using OpenStreetMap Nominatim.
+    """
+    if lat is None or lon is None:
+        return "Unknown Location"
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lon}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'AgriMachineTracker/1.0'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode('utf-8'))
+                address = data.get("address", {})
+                city = (address.get("city") or address.get("town") or 
+                        address.get("village") or address.get("suburb") or 
+                        address.get("county") or address.get("state_district"))
+                state = address.get("state")
+                country = address.get("country")
+                
+                parts = [p for p in [city, state, country] if p]
+                if parts:
+                    return ", ".join(parts)
+                display_name = data.get("display_name")
+                if display_name:
+                    return display_name
+    except Exception as e:
+        print(f"Error fetching reverse geocode location for ({lat}, {lon}): {e}")
+    return f"{lat:.4f}, {lon:.4f}"
+
+
 def lambda_handler(event, context):
     try:
         print(f"Received event: {json.dumps(event)}")
@@ -83,7 +114,7 @@ def lambda_handler(event, context):
             except Exception as e:
                 raise ValueError(f"Could not parse timestamp: {timestamp_raw}. Error: {e}")
 
-        # Parse latitude and longitude (float conversion)
+        # Parse latitude and longitude (float conversion) without fallback mechanism
         latitude = None
         longitude = None
         if latitude_raw is not None and str(latitude_raw).strip() != "":
@@ -105,24 +136,17 @@ def lambda_handler(event, context):
             print(f"Error fetching stats for {device_id}: {err}")
             stats_item = None
 
-        # Fallback to last known position if current coords are empty strings
-        if latitude is None or longitude is None:
-            if stats_item:
-                if latitude is None and stats_item.get("Last_Latitude") is not None:
-                    latitude = float(stats_item.get("Last_Latitude"))
-                if longitude is None and stats_item.get("Last_Longitude") is not None:
-                    longitude = float(stats_item.get("Last_Longitude"))
-            
-            # Default fallback if still None
-            if latitude is None:
-                latitude = 30.73332
-            if longitude is None:
-                longitude = 76.7794
+        # Fetch real location based on Lat and Long (No hardcoded fallback coordinates)
+        real_location = None
+        if latitude is not None and longitude is not None:
+            real_location = get_real_location(latitude, longitude)
+        elif stats_item:
+            real_location = stats_item.get("Last_Location") or stats_item.get("Location")
 
         # Parse Battery Voltage
         battery_voltage = str(battery_voltage_raw).strip() if battery_voltage_raw is not None else None
 
-        # 1. Save exact raw payload to AgriMachine_Tracker_Data table without timestamp conversion
+        # 1. Save exact raw payload to AgriMachine_Tracker_Data table
         item = dict(payload)
         item["Device_ID"] = str(device_id)
         item["Timestamp"] = str(timestamp_raw) # Preserve raw human timestamp string from payload
@@ -130,6 +154,8 @@ def lambda_handler(event, context):
             item["Latitude"] = Decimal(str(latitude))
         if longitude is not None:
             item["Longitude"] = Decimal(str(longitude))
+        if real_location:
+            item["Location"] = str(real_location)
         if battery_voltage is not None:
             item["BatteryVoltage"] = str(battery_voltage)
 
@@ -150,9 +176,9 @@ def lambda_handler(event, context):
             # Calculate time difference
             delta_t = timestamp - last_timestamp if last_timestamp is not None else 0.0
 
-            # Calculate distance difference
+            # Calculate distance difference only if valid current and last coordinates exist
             delta_d = 0.0
-            if last_lat is not None and last_lng is not None:
+            if latitude is not None and longitude is not None and last_lat is not None and last_lng is not None:
                 delta_d = calculate_haversine_distance(last_lat, last_lng, latitude, longitude)
 
             # Auto calculate speed from displacement
@@ -184,11 +210,21 @@ def lambda_handler(event, context):
             "Total_Distance": Decimal(str(round(total_distance, 4))),
             "Active_Duration": Decimal(str(round(active_duration, 2))),
             "Idle_Duration": Decimal(str(round(idle_duration, 2))),
-            "Last_Latitude": Decimal(str(latitude)),
-            "Last_Longitude": Decimal(str(longitude)),
             "Last_Timestamp": Decimal(str(round(timestamp, 2))),
             "Last_Status": str(status)
         }
+        if latitude is not None:
+            new_stats["Last_Latitude"] = Decimal(str(latitude))
+        elif stats_item and stats_item.get("Last_Latitude") is not None:
+            new_stats["Last_Latitude"] = Decimal(str(stats_item.get("Last_Latitude")))
+
+        if longitude is not None:
+            new_stats["Last_Longitude"] = Decimal(str(longitude))
+        elif stats_item and stats_item.get("Last_Longitude") is not None:
+            new_stats["Last_Longitude"] = Decimal(str(stats_item.get("Last_Longitude")))
+
+        if real_location:
+            new_stats["Last_Location"] = str(real_location)
         if battery_voltage is not None:
             new_stats["Last_BatteryVoltage"] = str(battery_voltage)
 
@@ -202,7 +238,8 @@ def lambda_handler(event, context):
         return {
             "statusCode": 200,
             "body": json.dumps({
-                "message": "Data stored and statistics updated successfully"
+                "message": "Data stored and statistics updated successfully",
+                "location": real_location
             })
         }
 
@@ -215,4 +252,4 @@ def lambda_handler(event, context):
             "body": json.dumps({
                 "error": str(e)
             })
-        }
+        }

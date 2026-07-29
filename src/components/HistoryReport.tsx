@@ -138,14 +138,15 @@ export const HistoryReport: React.FC<HistoryReportProps> = ({
                 <th className="py-4 px-4 text-right">Active Duration</th>
                 <th className="py-4 px-4 text-right">Idling Duration</th>
                 <th className="py-4 px-4 text-right">Idling Rate</th>
-                <th className="py-4 px-4">Journey Start Time</th>
+                <th className="py-4 px-4">Last Known Location</th>
+                <th className="py-4 px-4">Journey Time</th>
                 <th className="py-4 px-5 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {statsList.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500 text-sm">
+                  <td colSpan={8} className="py-12 text-center text-slate-500 text-sm">
                     No vehicle journey stats found in DynamoDB. Run send_telemetry.py to generate records.
                   </td>
                 </tr>
@@ -183,6 +184,13 @@ export const HistoryReport: React.FC<HistoryReportProps> = ({
                             <div className="h-full bg-amber-500" style={{ width: `${idlePercent}%` }} />
                             <div className="h-full bg-emerald-500" style={{ width: `${100 - idlePercent}%` }} />
                           </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-xs font-mono text-slate-300">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate max-w-[200px] text-indigo-300 font-medium" title={s.Last_Location || (s.Last_Latitude && s.Last_Longitude ? `${s.Last_Latitude.toFixed(4)}, ${s.Last_Longitude.toFixed(4)}` : 'Unknown')}>
+                            {s.Last_Location || (s.Last_Latitude && s.Last_Longitude ? `${s.Last_Latitude.toFixed(4)}, ${s.Last_Longitude.toFixed(4)}` : '—')}
+                          </span>
                         </div>
                       </td>
                       <td className="py-4 px-4 text-xs font-mono text-slate-400">
