@@ -33,15 +33,15 @@ AWS_SESSION_TOKEN = os.getenv('VITE_AWS_SESSION_TOKEN', '')
 REGION = os.getenv('VITE_REGION', 'us-east-1')
 TOPIC_TEMPLATE = os.getenv('VITE_MQTT_TOPIC', 'car/+/location')
 
-# Real-World Geographic Waypoint Routes for 5 Farm Machinery units across Punjab / North India
+# Real-World Geographic Waypoint Routes for 5 Farm Machinery units across Punjab / North India (Centered at IIT Ropar)
 VEHICLE_ROUTES = {
     "T_1": [
-        (30.733320, 76.779400), # Farm Machinery 1 - Chandigarh Sector 17
-        (30.738000, 76.782500), # Rose Garden
-        (30.742000, 76.786000), # Rock Garden
-        (30.744500, 76.788500), # Sukhna Lake
-        (30.740000, 76.785000), # Secretariat Road
-        (30.733320, 76.779400), # Loop back
+        (30.975000, 76.476000), # Farm Machinery 1 - IIT Ropar Main Gate, Rupnagar
+        (30.978800, 76.472800), # IIT Ropar Senate & Admin Block
+        (30.981500, 76.470000), # IIT Ropar AWaDH AgriTech Hub
+        (30.985000, 76.465000), # IIT Ropar Experimental Agri Fields
+        (30.982000, 76.460000), # Satluj Riverfront Campus Road
+        (30.975000, 76.476000), # Loop back to IIT Ropar Main Gate
     ],
     "T_2": [
         (30.901000, 75.857300), # Farm Machinery 2 - Ludhiana Ferozepur Road
@@ -76,7 +76,12 @@ VEHICLE_ROUTES = {
         (31.634000, 74.872300), # Loop back
     ],
     "T_10": [
-        (30.958060, 76.520890), # Farm Machinery 10 - Chhoti Haveli, Rupnagar, Punjab
+        (30.975000, 76.476000), # Farm Machinery 10 - IIT Ropar Main Gate, Rupnagar
+        (30.978800, 76.472800), # IIT Ropar Senate & Admin Block
+        (30.981500, 76.470000), # IIT Ropar AWaDH AgriTech Hub
+        (30.985000, 76.465000), # IIT Ropar Experimental Agri Fields
+        (30.982000, 76.460000), # Satluj Riverfront Campus Road
+        (30.975000, 76.476000), # Loop back to Main Gate
     ],
 }
 
@@ -232,33 +237,76 @@ def main():
         client.loop_stop()
         sys.exit(1)
 
-    # Simulation variables: Transmit telemetry for device T_10 at 1 minute interval (60 seconds)
-    vehicles_state = [
-        {"deviceId": "T_10", "lat": 30.95806, "lng": 76.52089},
-    ]
-    update_interval_sec = 60.0
+    # Dynamic waypoint movement simulation ONLY for device T_10
+    target_devices = ["T_10"]
+    vehicles_state = {}
+    for dev_id in target_devices:
+        if dev_id in VEHICLE_ROUTES:
+            vehicles_state[dev_id] = {
+                "route": VEHICLE_ROUTES[dev_id],
+                "waypoint_idx": 0,
+                "progress": 0.0,
+                "speed_kmh": 45.0  # Average driving speed ~45 km/h
+            }
 
-    print(f"\nStarting live telemetry transmission for device 'T_10' at (30.95806, 76.52089) every 60 seconds on topic '{TOPIC_TEMPLATE}'...")
+    update_interval_sec = 60.0  # Real hardware GPS tracker frequency: 1 packet every 60 seconds (1 minute)
+
+    print(f"\nStarting live dynamic telemetry transmission ONLY for device 'T_10' every {update_interval_sec}s (1 minute) on topic '{TOPIC_TEMPLATE}'...")
+    print("Every 1 minute, a new GPS coordinate payload is published for T_10 with 1 minute's worth of driving movement towards IIT Ropar.")
     print("Press Ctrl+C to stop.\n")
 
     try:
         while True:
-            for veh in vehicles_state:
-                device_id = veh["deviceId"]
-                lat = veh["lat"]
-                lng = veh["lng"]
+            for device_id, state in vehicles_state.items():
+                route = state["route"]
+                if not route:
+                    continue
+
+                if len(route) == 1:
+                    cur_lat, cur_lng = route[0]
+                else:
+                    idx = state["waypoint_idx"]
+                    next_idx = (idx + 1) % len(route)
+                    start_lat, start_lng = route[idx]
+                    end_lat, end_lng = route[next_idx]
+
+                    segment_dist = calculate_distance_meters(start_lat, start_lng, end_lat, end_lng)
+                    if segment_dist > 1.0:
+                        speed_ms = (state["speed_kmh"] * 1000.0) / 3600.0
+                        step_dist = speed_ms * update_interval_sec
+                        step_fraction = step_dist / segment_dist
+
+                        state["progress"] += step_fraction
+                        if state["progress"] >= 1.0:
+                            state["progress"] %= 1.0
+                            state["waypoint_idx"] = next_idx
+                            idx = next_idx
+                            next_idx = (idx + 1) % len(route)
+                            start_lat, start_lng = route[idx]
+                            end_lat, end_lng = route[next_idx]
+
+                    progress = state["progress"]
+                    cur_lat = start_lat + (end_lat - start_lat) * progress
+                    cur_lng = start_lng + (end_lng - start_lng) * progress
 
                 payload = {
                     "Device_ID": device_id,
                     "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Latitude": f"{lat:.5f}",
-                    "Longitude": f"{lng:.5f}",
+                    "Latitude": f"{cur_lat:.5f}",
+                    "Longitude": f"{cur_lng:.5f}",
                     "BatteryVoltage": "3.7"
                 }
 
                 payload_str = json.dumps(payload)
-                topic = TOPIC_TEMPLATE.replace('+', device_id)
-                print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Publishing [{device_id}]: {payload_str}")
+                if '+' in TOPIC_TEMPLATE:
+                    topic = TOPIC_TEMPLATE.replace('+', device_id)
+                elif '/' in TOPIC_TEMPLATE:
+                    base_topic = TOPIC_TEMPLATE.rsplit('/', 1)[0]
+                    topic = f"{base_topic}/{device_id}"
+                else:
+                    topic = f"{TOPIC_TEMPLATE}/{device_id}"
+
+                print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Publishing [{device_id}] to topic '{topic}': {payload_str}")
 
                 client.publish(
                     topic=topic,

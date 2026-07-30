@@ -79,6 +79,15 @@ export class MQTTService {
         console.log('[MQTT] Connected successfully to AWS IoT Core');
         this.setStatus('connected');
         this.subscribe(this.config.topic);
+        
+        // If config topic is specific (e.g. AgriMachineTracker/1), also subscribe to wildcard AgriMachineTracker/+ and car/+/location
+        if (this.config.topic.includes('/') && !this.config.topic.includes('+') && !this.config.topic.includes('#')) {
+          const baseTopic = this.config.topic.substring(0, this.config.topic.lastIndexOf('/'));
+          this.subscribe(`${baseTopic}/+`);
+        }
+        if (!this.config.topic.startsWith('car/')) {
+          this.subscribe('car/+/location');
+        }
       });
 
       this.client.on('reconnect', () => {

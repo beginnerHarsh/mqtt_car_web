@@ -1,22 +1,14 @@
 import { TelemetryPacket } from '../types/vehicle';
 import { calculateBearing, calculateDistanceMeters } from '../utils/geo';
 
-// Predefined closed loop route waypoints around Chandigarh city center
+// Predefined closed loop route waypoints around IIT Ropar (Rupnagar, Punjab)
 const SIMULATOR_WAYPOINTS: Array<[number, number]> = [
-  [30.733320, 76.779400],
-  [30.734500, 76.782000],
-  [30.737000, 76.784500],
-  [30.740500, 76.785000],
-  [30.744000, 76.782500],
-  [30.746500, 76.778000],
-  [30.748000, 76.772500],
-  [30.746000, 76.767000],
-  [30.742000, 76.764000],
-  [30.737500, 76.763500],
-  [30.734000, 76.766000],
-  [30.731500, 76.770500],
-  [30.730500, 76.775000],
-  [30.733320, 76.779400], // Closes loop
+  [30.975000, 76.476000], // IIT Ropar Main Gate
+  [30.978800, 76.472800], // IIT Ropar Senate & Admin Block
+  [30.981500, 76.470000], // IIT Ropar AWaDH AgriTech Hub
+  [30.985000, 76.465000], // IIT Ropar Experimental Agri Fields
+  [30.982000, 76.460000], // Satluj Riverfront Campus Road
+  [30.975000, 76.476000], // Loop back to Main Gate
 ];
 
 export type SimulatorCallback = (packet: TelemetryPacket) => void;

@@ -149,7 +149,8 @@ def lambda_handler(event, context):
         # 1. Save exact raw payload to AgriMachine_Tracker_Data table
         item = dict(payload)
         item["Device_ID"] = str(device_id)
-        item["Timestamp"] = str(timestamp_raw) # Preserve raw human timestamp string from payload
+        item["Timestamp"] = str(timestamp_raw) # String (S) matching AWS DynamoDB Range Key schema
+        item["Epoch_Timestamp"] = Decimal(str(round(timestamp, 2)))
         if latitude is not None:
             item["Latitude"] = Decimal(str(latitude))
         if longitude is not None:
@@ -160,7 +161,11 @@ def lambda_handler(event, context):
             item["BatteryVoltage"] = str(battery_voltage)
 
         item = decimal_converter(item)
-        table.put_item(Item=item)
+        
+        try:
+            table.put_item(Item=item)
+        except Exception as err:
+            print(f"Error saving to AgriMachine_Tracker_Data for {device_id}: {err}")
 
         # 2. Update real-time summary statistics
         speed = 0.0
@@ -204,14 +209,43 @@ def lambda_handler(event, context):
             idle_duration = 0.0
             status = "moving"
 
+        # Formatted human-readable helper attributes for easy reading in DynamoDB Console
+        total_dur = active_duration + idle_duration
+        idle_pct = round((idle_duration / total_dur) * 100) if total_dur > 0 else 0
+        
+        def format_dur(secs):
+            s = int(secs)
+            h = s // 3600
+            m = (s % 3600) // 60
+            sec = s % 60
+            if h > 0:
+                return f"{h}h {m}m {sec}s"
+            elif m > 0:
+                return f"{m}m {sec}s"
+            return f"{sec}s"
+
+        try:
+            dt_obj = datetime.fromtimestamp(timestamp)
+            human_time = dt_obj.strftime("%b %d, %Y %I:%M:%S %p")
+        except Exception:
+            human_time = str(timestamp)
+
         # Save back updated summary stats
         new_stats = {
             "Device_ID": str(device_id),
+            "Vehicle_Name": str(friendly_name),
+            # Raw numerical metrics (meters, seconds, epoch) for programmatic calculations
             "Total_Distance": Decimal(str(round(total_distance, 4))),
             "Active_Duration": Decimal(str(round(active_duration, 2))),
             "Idle_Duration": Decimal(str(round(idle_duration, 2))),
             "Last_Timestamp": Decimal(str(round(timestamp, 2))),
-            "Last_Status": str(status)
+            "Last_Status": str(status),
+            # Human-readable formatted metrics for instant visibility in AWS DynamoDB Console
+            "Total_Distance_Km": f"{round(total_distance / 1000.0, 2)} km",
+            "Active_Duration_Formatted": format_dur(active_duration),
+            "Idle_Duration_Formatted": format_dur(idle_duration),
+            "Idling_Rate": f"{idle_pct}%",
+            "Last_Updated_Human": human_time
         }
         if latitude is not None:
             new_stats["Last_Latitude"] = Decimal(str(latitude))
