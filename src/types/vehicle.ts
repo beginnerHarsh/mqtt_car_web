@@ -83,3 +83,18 @@ export interface MQTTConfig {
   awsSessionToken?: string;
   awsCognitoIdentityPoolId?: string;
 }
+
+/**
+ * Daily breakdown of vehicle run statistics
+ */
+export interface DailyVehicleStats {
+  date: string;              // ISO Date string: YYYY-MM-DD
+  deviceId: string;
+  totalDistance: number;     // cumulative distance in meters for this date
+  activeDuration: number;    // movement duration in seconds
+  idleDuration: number;      // stationary duration in seconds
+  firstTimestamp?: number;   // start time of trip on this date (ms or sec timestamp)
+  lastTimestamp?: number;    // end time of trip on this date (ms or sec timestamp)
+  routePoints: [number, number][]; // coordinates list for this specific date
+}
+

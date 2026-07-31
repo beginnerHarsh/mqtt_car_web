@@ -191,7 +191,7 @@ export const Dashboard: React.FC = () => {
               setActiveView('live');
             }}
             onRefresh={() => refreshStats()}
-            onLocateVehicle={async (id) => {
+            onLocateVehicle={async (id, dayRoutePoints) => {
               // 1. Instantly switch to live map view
               setActiveTab('Live Tracking');
               setActiveView('live');
@@ -200,12 +200,14 @@ export const Dashboard: React.FC = () => {
               setSelectedDeviceId(id);
               setAutoFollow(true);
 
-              // 3. Load historical route line points for Trip Replay (with fallback)
-              let routePoints: [number, number][] = [];
-              try {
-                routePoints = await fetchVehicleRouteHistory(id);
-              } catch (e) {
-                console.error("Failed to load vehicle path history:", e);
+              // 3. Load historical route line points for Trip Replay (use day specific points if passed)
+              let routePoints: [number, number][] = dayRoutePoints || [];
+              if (!routePoints || routePoints.length < 2) {
+                try {
+                  routePoints = await fetchVehicleRouteHistory(id);
+                } catch (e) {
+                  console.error("Failed to load vehicle path history:", e);
+                }
               }
 
               const veh = vehicles.find((v) => v.deviceId === id);
