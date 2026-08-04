@@ -31,10 +31,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       {/* Brand Title, Active Badge & Vehicle Selector */}
       <div className="flex items-center gap-2 sm:gap-4 min-w-0">
         <div className="flex items-center gap-2 shrink-0">
-          <div className="p-1.5 sm:p-2 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-emerald-500 text-white shadow-lg shadow-blue-500/30">
+          <div className="p-1.5 sm:p-2 rounded-xl bg-linear-to-tr from-blue-600 via-indigo-600 to-emerald-500 text-white shadow-lg shadow-blue-500/30">
             <Radio className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse" />
           </div>
-          <h1 className="font-black text-lg sm:text-xl tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-emerald-400 bg-clip-text text-transparent">
+          <h1 className="font-black text-lg sm:text-xl tracking-tight bg-linear-to-r from-blue-400 via-indigo-300 to-emerald-400 bg-clip-text text-transparent">
             pindbazaar
           </h1>
         </div>

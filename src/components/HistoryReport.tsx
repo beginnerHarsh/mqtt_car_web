@@ -140,48 +140,48 @@ export const HistoryReport: React.FC<HistoryReportProps> = ({
   };
 
   return (
-    <div className="w-full h-full bg-slate-950 text-slate-100 p-3 sm:p-6 overflow-y-auto flex flex-col font-sans">
+    <div className="w-full h-full bg-slate-950 text-slate-100 p-3 sm:p-6 overflow-y-auto flex flex-col font-sans pb-24 sm:pb-8">
       {/* Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-800/80 pb-4 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 border-b border-slate-800/80 pb-4 shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 transition-colors border border-slate-700/60 shadow-md"
+            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 transition-colors border border-slate-700/60 shadow-md shrink-0"
             title="Go Back to Map View"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-emerald-400 bg-clip-text text-transparent">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-linear-to-r from-blue-400 via-indigo-300 to-emerald-400 bg-clip-text text-transparent">
               Date-Wise Farm Machinery History
             </h1>
-            <p className="text-xs text-slate-400 font-mono">View daily operational runtime, distance, and historical trip replays</p>
+            <p className="text-[11px] sm:text-xs text-slate-400 font-mono">View daily operational runtime, distance, and historical trip replays</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
           <button
             onClick={() => {
               onRefresh();
               loadAllDailyStats();
             }}
             disabled={loading || loadingDaily}
-            className="flex items-center gap-2 px-4 py-2.5 text-xs font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98]"
+            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 text-xs font-extrabold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98]"
           >
-            <RefreshCw className={`w-4 h-4 ${loading || loadingDaily ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading || loadingDaily ? 'animate-spin' : ''}`} />
             Refresh Stats
           </button>
         </div>
       </div>
 
       {/* Date Filter Bar */}
-      <div className="mb-6 p-4 bg-slate-900/90 border border-slate-800 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
+      <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-slate-900/90 border border-slate-800 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xl">
         <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-          <Filter className="w-4 h-4 text-indigo-400" />
+          <Filter className="w-4 h-4 text-indigo-400 shrink-0" />
           <span>Filter History by Date:</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {[
             { id: 'all', label: 'All Dates' },
             { id: 'today', label: 'Today' },
@@ -191,7 +191,7 @@ export const HistoryReport: React.FC<HistoryReportProps> = ({
             <button
               key={btn.id}
               onClick={() => setDatePreset(btn.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
                 datePreset === btn.id
                   ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-500/30'
                   : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
@@ -202,8 +202,8 @@ export const HistoryReport: React.FC<HistoryReportProps> = ({
           ))}
 
           {/* Custom Date Picker */}
-          <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-800">
-            <Calendar className="w-4 h-4 text-emerald-400" />
+          <div className="flex items-center gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 sm:border-l border-slate-800 sm:pl-2 sm:ml-2">
+            <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
             <input
               type="date"
               value={customDate}
@@ -211,7 +211,7 @@ export const HistoryReport: React.FC<HistoryReportProps> = ({
                 setCustomDate(e.target.value);
                 setDatePreset('custom');
               }}
-              className={`px-3 py-1 rounded-xl text-xs font-mono border bg-slate-950 text-slate-200 transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
+              className={`px-3 py-1 rounded-xl text-xs font-mono border bg-slate-950 text-slate-200 transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500 w-full sm:w-auto ${
                 datePreset === 'custom' ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-slate-800'
               }`}
             />
@@ -220,50 +220,52 @@ export const HistoryReport: React.FC<HistoryReportProps> = ({
       </div>
 
       {/* Fleet Totals Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 shrink-0">
-        <div className="p-4 bg-slate-900/80 border border-slate-800/80 rounded-2xl flex items-center gap-4 shadow-xl relative overflow-hidden group">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-4 mb-4 sm:mb-6 shrink-0">
+        <div className="p-3 sm:p-4 bg-slate-900/80 border border-slate-800/80 rounded-2xl flex items-center gap-3 sm:gap-4 shadow-xl relative overflow-hidden group">
           <div className="absolute -top-4 -right-4 w-16 h-16 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all" />
-          <div className="p-3.5 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 shadow-inner">
-            <Gauge className="w-6 h-6" />
+          <div className="p-2.5 sm:p-3.5 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 shadow-inner shrink-0">
+            <Gauge className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-extrabold block">
-              {datePreset === 'all' ? 'Total Fleet Distance' : `Distance (${datePreset})`}
+          <div className="min-w-0">
+            <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-400 font-extrabold block truncate">
+              {datePreset === 'all' ? 'Fleet Distance' : `Dist (${datePreset})`}
             </span>
-            <span className="text-2xl font-black text-white font-mono">
-              {(filteredTotalDistance / 1000).toFixed(2)} <span className="text-sm font-semibold text-blue-400">km</span>
+            <span className="text-lg sm:text-2xl font-black text-white font-mono truncate block">
+              {(filteredTotalDistance / 1000).toFixed(2)} <span className="text-xs sm:text-sm font-semibold text-blue-400">km</span>
             </span>
           </div>
         </div>
 
-        <div className="p-4 bg-slate-900/80 border border-slate-800/80 rounded-2xl flex items-center gap-4 shadow-xl relative overflow-hidden group">
+        <div className="p-3 sm:p-4 bg-slate-900/80 border border-slate-800/80 rounded-2xl flex items-center gap-3 sm:gap-4 shadow-xl relative overflow-hidden group">
           <div className="absolute -top-4 -right-4 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all" />
-          <div className="p-3.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 shadow-inner">
-            <Clock className="w-6 h-6" />
+          <div className="p-2.5 sm:p-3.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 shadow-inner shrink-0">
+            <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-extrabold block">
-              {datePreset === 'all' ? 'Total Active Worktime' : `Worktime (${datePreset})`}
+          <div className="min-w-0">
+            <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-400 font-extrabold block truncate">
+              {datePreset === 'all' ? 'Fleet Worktime' : `Work (${datePreset})`}
             </span>
-            <span className="text-2xl font-black text-white font-mono">{formatDuration(filteredTotalActiveTime)}</span>
+            <span className="text-lg sm:text-2xl font-black text-white font-mono truncate block">{formatDuration(filteredTotalActiveTime)}</span>
           </div>
         </div>
 
-        <div className="p-4 bg-slate-900/80 border border-slate-800/80 rounded-2xl flex items-center gap-4 shadow-xl relative overflow-hidden group">
+        <div className="col-span-2 md:col-span-1 p-3 sm:p-4 bg-slate-900/80 border border-slate-800/80 rounded-2xl flex items-center gap-3 sm:gap-4 shadow-xl relative overflow-hidden group">
           <div className="absolute -top-4 -right-4 w-16 h-16 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition-all" />
-          <div className="p-3.5 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 shadow-inner">
-            <ShieldAlert className="w-6 h-6" />
+          <div className="p-2.5 sm:p-3.5 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 shadow-inner shrink-0">
+            <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-extrabold block">Active Machinery Units</span>
-            <span className="text-2xl font-black text-white font-mono">{statsList.length} Units</span>
+          <div className="min-w-0">
+            <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-400 font-extrabold block truncate">Active Units</span>
+            <span className="text-lg sm:text-2xl font-black text-white font-mono truncate block">{statsList.length} Units</span>
           </div>
         </div>
       </div>
 
-      {/* Machinery History & Date-wise Breakdown List */}
-      <div className="flex-1 bg-slate-900/80 border border-slate-800/80 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
-        <div className="overflow-x-auto flex-1">
+      {/* Machinery History: Desktop Table & Mobile Card Views */}
+      <div className="flex-1 bg-slate-900/80 border border-slate-800/80 rounded-2xl overflow-hidden flex flex-col shadow-2xl p-3 sm:p-0">
+        
+        {/* ── DESKTOP TABLE VIEW (hidden on mobile < md, visible on md+) ── */}
+        <div className="hidden md:block overflow-x-auto flex-1">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-900">
@@ -435,7 +437,7 @@ export const HistoryReport: React.FC<HistoryReportProps> = ({
                                           <td className="py-3 px-3 text-center">
                                             <button
                                               onClick={() => onLocateVehicle(s.Device_ID, daily.routePoints)}
-                                              className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg shadow-md transition-all active:scale-[0.97]"
+                                              className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-extrabold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg shadow-md transition-all active:scale-[0.97]"
                                               title={`Replay trip for ${daily.date}`}
                                             >
                                               <Play className="w-3 h-3 fill-current" />
@@ -459,6 +461,143 @@ export const HistoryReport: React.FC<HistoryReportProps> = ({
             </tbody>
           </table>
         </div>
+
+        {/* ── MOBILE CARDS VIEW (visible on mobile < md, hidden on md+) ── */}
+        <div className="block md:hidden space-y-3 flex-1 overflow-y-auto">
+          {statsList.length === 0 ? (
+            <div className="py-12 text-center text-slate-500 text-sm font-mono">
+              No vehicle stats found in DynamoDB.
+            </div>
+          ) : (
+            statsList.map((s) => {
+              const dailyRecords = (dailyStatsMap[s.Device_ID] || []).filter(isDailyRecordMatched);
+              const isExpanded = expandedDeviceId === s.Device_ID;
+
+              const vehDistance = datePreset === 'all' 
+                ? s.Total_Distance 
+                : dailyRecords.reduce((sum, r) => sum + r.totalDistance, 0);
+              
+              const vehActiveTime = datePreset === 'all' 
+                ? s.Active_Duration 
+                : dailyRecords.reduce((sum, r) => sum + r.activeDuration, 0);
+
+              const vehIdleTime = datePreset === 'all' 
+                ? s.Idle_Duration 
+                : dailyRecords.reduce((sum, r) => sum + r.idleDuration, 0);
+
+              return (
+                <div key={s.Device_ID} className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-lg space-y-3">
+                  {/* Card Header */}
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-3" onClick={() => toggleExpand(s.Device_ID)}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-xl bg-slate-800 p-2 rounded-xl border border-slate-700/40 shrink-0">
+                        {getVehicleImg(s.Device_ID)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-extrabold text-sm text-white truncate">{getVehicleName(s.Device_ID)}</span>
+                          <span className="px-2 py-0.5 text-[9px] font-extrabold rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            {dailyRecords.length} Days Run
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-mono tracking-wide">{s.Device_ID}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                        s.Last_Status === 'moving' 
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                          : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      }`}>
+                        {s.Last_Status || 'Active'}
+                      </span>
+                      <button className="p-1 rounded-lg bg-slate-800 text-slate-400">
+                        {isExpanded ? <ChevronDown className="w-4 h-4 text-indigo-400" /> : <ChevronRight className="w-4 h-4 text-slate-500" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card Key Metrics Grid */}
+                  <div className="grid grid-cols-3 gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60 text-center font-mono">
+                    <div>
+                      <span className="text-[9px] text-slate-400 block font-sans font-semibold">Distance</span>
+                      <span className="text-xs font-black text-white">{(vehDistance / 1000).toFixed(2)} <span className="text-[9px] text-blue-400 font-normal">km</span></span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 block font-sans font-semibold">Work Time</span>
+                      <span className="text-xs font-bold text-emerald-400">{formatDuration(vehActiveTime)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 block font-sans font-semibold">Idle Time</span>
+                      <span className="text-xs text-slate-400">{formatDuration(vehIdleTime)}</span>
+                    </div>
+                  </div>
+
+                  {/* Card Action Button */}
+                  <button
+                    onClick={() => toggleExpand(s.Device_ID)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-extrabold bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-xl transition-colors"
+                  >
+                    {isExpanded ? 'Hide Date Breakdown' : `View Date Breakdown (${dailyRecords.length} Days)`}
+                  </button>
+
+                  {/* Mobile Expanded Daily Breakdown List */}
+                  {isExpanded && (
+                    <div className="pt-2 border-t border-slate-800/80 space-y-2.5">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                        <span className="flex items-center gap-1.5 font-bold text-slate-200">
+                          <Calendar className="w-3.5 h-3.5 text-emerald-400" /> Daily Run Logs
+                        </span>
+                        <span>{dailyRecords.length} Days</span>
+                      </div>
+
+                      {dailyRecords.length === 0 ? (
+                        <div className="py-4 text-center text-xs text-slate-500 font-mono">
+                          No daily telemetry records found.
+                        </div>
+                      ) : (
+                        dailyRecords.map((daily) => (
+                          <div key={daily.date} className="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-2 font-mono">
+                            <div className="flex items-center justify-between text-xs border-b border-slate-800/80 pb-2">
+                              <span className="font-bold text-white flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                {daily.date}
+                              </span>
+                              <span className="font-black text-blue-400">
+                                {(daily.totalDistance / 1000).toFixed(2)} km
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
+                              <div>
+                                <span className="text-[9px] text-slate-500 block font-sans">Active Worktime</span>
+                                <span className="font-bold text-emerald-400">{formatDuration(daily.activeDuration)}</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] text-slate-500 block font-sans">Operating Window</span>
+                                <span>{formatOnlyTime(daily.firstTimestamp)} - {formatOnlyTime(daily.lastTimestamp)}</span>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => onLocateVehicle(s.Device_ID, daily.routePoints)}
+                              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-extrabold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl shadow-md transition-all active:scale-[0.98]"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-current" />
+                              Replay Day Trip ({daily.date})
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
       </div>
     </div>
   );

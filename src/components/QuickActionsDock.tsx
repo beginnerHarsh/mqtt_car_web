@@ -24,7 +24,7 @@ export const QuickActionsDock: React.FC<QuickActionsDockProps> = ({
         {/* Locate Action */}
         <button
           onClick={onLocate}
-          className="flex flex-col items-center justify-center gap-1 min-w-[64px] px-2 py-1.5 rounded-full hover:bg-slate-800/80 transition-all group"
+          className="flex flex-col items-center justify-center gap-1 min-w-16 px-2 py-1.5 rounded-full hover:bg-slate-800/80 transition-all group"
           title="Recenter & Auto-Follow Vehicle"
         >
           <div
@@ -44,7 +44,7 @@ export const QuickActionsDock: React.FC<QuickActionsDockProps> = ({
         {/* Route Action (Toggle Route Path Line Visibility) */}
         <button
           onClick={onToggleRoute}
-          className="flex flex-col items-center justify-center gap-1 min-w-[64px] px-2 py-1.5 rounded-full hover:bg-slate-800/80 transition-all group"
+          className="flex flex-col items-center justify-center gap-1 min-w-16 px-2 py-1.5 rounded-full hover:bg-slate-800/80 transition-all group"
           title="Toggle Vehicle Path Line Visibility"
         >
           <div
@@ -62,7 +62,7 @@ export const QuickActionsDock: React.FC<QuickActionsDockProps> = ({
         {/* History Action */}
         <button
           onClick={onToggleHistory}
-          className="flex flex-col items-center justify-center gap-1 min-w-[64px] px-2 py-1.5 rounded-full hover:bg-slate-800/80 transition-all group"
+          className="flex flex-col items-center justify-center gap-1 min-w-16 px-2 py-1.5 rounded-full hover:bg-slate-800/80 transition-all group"
           title="View Telemetry Journey History Reports"
         >
           <div
