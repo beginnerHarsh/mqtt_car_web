@@ -200,3 +200,50 @@ export function calculateAcreageCovered(
     totalDistanceKm: Number(totalDistanceKm.toFixed(2)),
   };
 }
+
+/**
+ * City & District spatial reference centers for dynamic geographic resolution
+ */
+export const CITY_CENTROIDS = [
+  { city: 'Rupnagar', lat: 30.9580, lng: 76.5208 },
+  { city: 'Chandigarh', lat: 30.7333, lng: 76.7794 },
+  { city: 'Mohali', lat: 30.7046, lng: 76.7179 },
+  { city: 'Ludhiana', lat: 30.9010, lng: 75.8573 },
+  { city: 'Hoshiarpur', lat: 31.5303, lng: 75.9115 },
+  { city: 'Amritsar', lat: 31.6340, lng: 74.8723 },
+  { city: 'Jalandhar', lat: 31.3260, lng: 75.5760 },
+  { city: 'Patiala', lat: 30.3400, lng: 76.3800 },
+  { city: 'Panchkula', lat: 30.6942, lng: 76.8535 },
+  { city: 'Ambala', lat: 30.3782, lng: 76.7767 },
+  { city: 'Bathinda', lat: 30.2110, lng: 74.9450 },
+  { city: 'Pathankot', lat: 32.2663, lng: 75.6425 },
+  { city: 'Phagwara', lat: 31.2240, lng: 75.7708 },
+  { city: 'Faridkot', lat: 30.6766, lng: 74.7583 },
+  { city: 'Moga', lat: 30.8165, lng: 75.1717 },
+  { city: 'Delhi / NCR', lat: 28.6139, lng: 77.2090 },
+];
+
+/**
+ * Dynamically resolve the nearest city/region name based on live latitude and longitude
+ */
+export function getDynamicCityName(lat: number, lng: number): string {
+  if (!lat || !lng || (lat === 0 && lng === 0)) return 'Field Location';
+
+  let closestCity = 'Field Location';
+  let minDistanceMeters = Infinity;
+
+  for (const centroid of CITY_CENTROIDS) {
+    const dist = calculateDistanceMeters(lat, lng, centroid.lat, centroid.lng);
+    if (dist < minDistanceMeters) {
+      minDistanceMeters = dist;
+      closestCity = centroid.city;
+    }
+  }
+
+  // If vehicle is within 50km of a known city/district, return city name; else show formatted coords
+  if (minDistanceMeters <= 50000) {
+    return closestCity;
+  }
+
+  return `${lat.toFixed(2)}°, ${lng.toFixed(2)}°`;
+}

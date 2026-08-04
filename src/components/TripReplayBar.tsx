@@ -58,7 +58,7 @@ export const TripReplayBar: React.FC<TripReplayBarProps> = ({
   const progressPercent = totalPoints > 1 ? Math.round((currentIndex / (totalPoints - 1)) * 100) : 100;
 
   return (
-    <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 w-[90%] max-w-xl bg-slate-900/95 backdrop-blur-md text-white p-3.5 rounded-2xl shadow-2xl border border-slate-700/80 flex flex-col gap-2 font-sans animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div className="absolute bottom-16 sm:bottom-20 left-1/2 -translate-x-1/2 z-30 w-[95%] sm:w-[90%] max-w-xl bg-slate-900/95 backdrop-blur-md text-white p-2.5 sm:p-3.5 rounded-2xl shadow-2xl border border-slate-700/80 flex flex-col gap-2 font-sans animate-in fade-in slide-in-from-bottom-4 duration-300">
       {/* Header Info */}
       <div className="flex items-center justify-between text-xs px-1">
         <div className="flex items-center gap-2">

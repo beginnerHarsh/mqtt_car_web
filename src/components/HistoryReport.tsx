@@ -140,7 +140,7 @@ export const HistoryReport: React.FC<HistoryReportProps> = ({
   };
 
   return (
-    <div className="w-full h-full bg-slate-950 text-slate-100 p-6 overflow-y-auto flex flex-col font-sans">
+    <div className="w-full h-full bg-slate-950 text-slate-100 p-3 sm:p-6 overflow-y-auto flex flex-col font-sans">
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-800/80 pb-4 shrink-0">
         <div className="flex items-center gap-3">

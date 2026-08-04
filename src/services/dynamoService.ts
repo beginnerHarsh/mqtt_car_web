@@ -193,10 +193,31 @@ export async function fetchDailyVehicleStats(deviceId: string): Promise<DailyVeh
 
   Object.entries(dateGroups).forEach(([date, group]) => {
     let totalDist = 0;
+    let activeSec = 0;
+    let idleSec = 0;
+
     for (let i = 1; i < group.pts.length; i++) {
       const [lat1, lng1] = group.pts[i - 1];
       const [lat2, lng2] = group.pts[i];
-      totalDist += calculateDistanceMeters(lat1, lng1, lat2, lng2);
+      const stepDist = calculateDistanceMeters(lat1, lng1, lat2, lng2);
+      totalDist += stepDist;
+
+      const tPrev = group.timestamps[i - 1];
+      const tCurr = group.timestamps[i];
+      const dtSec = tCurr && tPrev && tCurr > tPrev ? Math.round((tCurr - tPrev) / 1000) : 60;
+
+      // Dynamically calculate speed in km/h from coordinate distance & time delta if speed is missing in raw payload
+      const calcSpeedKmh = dtSec > 0 ? (stepDist / dtSec) * 3.6 : 0;
+      const speed = group.speeds[i] > 0 ? group.speeds[i] : calcSpeedKmh;
+
+      // Ignore large gaps (> 5 mins / 300s) as Engine OFF / Parked time
+      if (dtSec <= 300) {
+        if (speed > 1.5 || stepDist > 3) {
+          activeSec += dtSec;
+        } else {
+          idleSec += dtSec;
+        }
+      }
     }
 
     const firstTs = group.timestamps[0];
@@ -205,9 +226,11 @@ export async function fetchDailyVehicleStats(deviceId: string): Promise<DailyVeh
       ? Math.round((lastTs - firstTs) / 1000) 
       : group.pts.length * 60; // estimate 1 min per ping
 
-    // Estimate active vs idle time based on speeds or default 80% active
-    const activeSec = Math.max(300, Math.round(totalElapsedSec * 0.85));
-    const idleSec = Math.max(60, totalElapsedSec - activeSec);
+    // Fallback if only 1 ping or zero deltas
+    if (activeSec === 0 && idleSec === 0) {
+      activeSec = Math.max(300, Math.round(totalElapsedSec * 0.85));
+      idleSec = Math.max(60, totalElapsedSec - activeSec);
+    }
 
     dailyResult.push({
       date,

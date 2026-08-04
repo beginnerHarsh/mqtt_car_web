@@ -24,7 +24,7 @@ export const AcreageCoverageWidget: React.FC<AcreageCoverageWidgetProps> = ({
   );
 
   return (
-    <div className="absolute left-6 top-20 z-20 w-80 bg-slate-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/80 p-4 font-sans text-white animate-in fade-in slide-in-from-top-2 duration-300">
+    <div className="absolute left-3 right-3 sm:right-auto sm:left-6 top-20 z-20 sm:w-80 max-w-full sm:max-w-none bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/80 p-3.5 sm:p-4 font-sans text-white animate-in fade-in slide-in-from-top-2 duration-300">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
         <div className="flex items-center gap-2.5">
