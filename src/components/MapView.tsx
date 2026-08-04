@@ -42,6 +42,15 @@ export const MapView: React.FC<MapViewProps> = ({
   const [selectedLayerId, setSelectedLayerId] = useState<string>('osm');
   const [showLayerMenu, setShowLayerMenu] = useState<boolean>(false);
 
+  // Auto-hide popover menu after 5s of inactivity
+  useEffect(() => {
+    if (!showLayerMenu) return;
+    const timer = setTimeout(() => {
+      setShowLayerMenu(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [showLayerMenu]);
+
   // Initialize Leaflet Map
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;

@@ -29,6 +29,10 @@ export function useMQTT(onTrackVehicle?: (deviceId: string) => void): UseMQTTRet
   // Track timestamps of when devices were last seen active
   const activeDevicesRef = useRef<Map<string, number>>(new Map());
 
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
   const addToast = useCallback((
     type: NotificationToast['type'], 
     title: string, 
@@ -36,8 +40,9 @@ export function useMQTT(onTrackVehicle?: (deviceId: string) => void): UseMQTTRet
     actionLabel?: string,
     onAction?: () => void
   ) => {
+    const id = Math.random().toString(36).substring(2, 9);
     const newToast: NotificationToast = {
-      id: Math.random().toString(36).substring(2, 9),
+      id,
       type,
       title,
       message,
@@ -46,11 +51,12 @@ export function useMQTT(onTrackVehicle?: (deviceId: string) => void): UseMQTTRet
       onAction,
     };
     setToasts((prev) => [newToast, ...prev].slice(0, 5));
-  }, []);
 
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+    // Fallback auto-dismiss timer after 4.5s
+    setTimeout(() => {
+      dismissToast(id);
+    }, 4500);
+  }, [dismissToast]);
 
   const handleIncomingPacket = useCallback((packet: TelemetryPacket) => {
     const now = Date.now();
