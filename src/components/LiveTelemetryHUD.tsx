@@ -13,7 +13,7 @@ export const LiveTelemetryHUD: React.FC<LiveTelemetryHUDProps> = ({
   selectedVehicle,
   packetsReceived,
 }) => {
-  const [isExpanded, setIsExpanded] = useState<boolean>(true);
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
   if (!selectedVehicle) return null;
@@ -33,26 +33,32 @@ export const LiveTelemetryHUD: React.FC<LiveTelemetryHUDProps> = ({
 
   return (
     <div className="absolute right-3 left-3 sm:left-auto sm:right-6 bottom-20 sm:bottom-24 z-20 sm:w-72 max-w-full sm:max-w-none bg-slate-900/95 backdrop-blur-xl text-white rounded-2xl shadow-2xl border border-slate-700/70 overflow-hidden font-sans transition-all duration-300">
-      {/* HUD Header Bar */}
+      {/* HUD Header Bar (Clickable to Expand/Collapse) */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        className="px-4 py-3 bg-slate-800/80 border-b border-slate-700/60 flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-colors"
+        className="px-3.5 py-2.5 bg-slate-800/80 border-b border-slate-700/60 flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-colors"
       >
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-blue-600/30 text-blue-400 border border-blue-500/30 shadow-inner">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="p-1.5 rounded-lg bg-blue-600/30 text-blue-400 border border-blue-500/30 shadow-inner shrink-0">
             <Zap className="w-4 h-4 animate-pulse text-blue-400" />
           </div>
-          <div>
-            <h4 className="font-extrabold text-xs tracking-wide text-white uppercase font-mono">
-              Live HUD: {displayName} ({selectedVehicle.deviceId})
+          <div className="min-w-0">
+            <h4 className="font-extrabold text-xs tracking-wide text-white uppercase font-mono truncate">
+              HUD: {displayName}
             </h4>
-            <span className="text-[10px] text-slate-400 font-medium font-mono">
-              Packets: {packetsReceived} • Telemetry Stream
-            </span>
+            {!isExpanded ? (
+              <span className="text-[10px] text-slate-300 font-mono font-bold">
+                <span className="text-blue-400">{speedKm} km/h</span> • <span className="text-emerald-400">{cardinalDir} ({headingDeg}°)</span>
+              </span>
+            ) : (
+              <span className="text-[10px] text-slate-400 font-medium font-mono truncate">
+                Packets: {packetsReceived} • Telemetry Stream
+              </span>
+            )}
           </div>
         </div>
 
-        <button className="text-slate-400 hover:text-white transition-colors">
+        <button className="text-slate-400 hover:text-white transition-colors p-1 shrink-0">
           {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
         </button>
       </div>
