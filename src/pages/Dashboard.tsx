@@ -173,15 +173,17 @@ export const Dashboard: React.FC = () => {
               />
             )}
 
-            {/* Quick Actions Dock (Bottom Center) */}
-            <QuickActionsDock
-              onLocate={handleLocateVehicle}
-              onToggleRoute={handleToggleRoute}
-              onToggleHistory={handleToggleHistory}
-              isAutoFollow={autoFollow}
-              isRouteVisible={showRouteLine}
-              isHistoryVisible={false}
-            />
+            {/* Quick Actions Dock (Bottom Center - Hidden during Trip Replay mode) */}
+            {!isReplayActive && (
+              <QuickActionsDock
+                onLocate={handleLocateVehicle}
+                onToggleRoute={handleToggleRoute}
+                onToggleHistory={handleToggleHistory}
+                isAutoFollow={autoFollow}
+                isRouteVisible={showRouteLine}
+                isHistoryVisible={false}
+              />
+            )}
           </>
         ) : (
           <HistoryReport

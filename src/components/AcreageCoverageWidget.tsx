@@ -14,7 +14,9 @@ export const AcreageCoverageWidget: React.FC<AcreageCoverageWidgetProps> = ({
   implementWidth,
   onImplementWidthChange,
 }) => {
-  const [isExpanded, setIsExpanded] = useState<boolean>(true);
+  const [isExpanded, setIsExpanded] = useState<boolean>(() => {
+    return typeof window !== 'undefined' ? window.innerWidth >= 640 : true;
+  });
 
   if (!selectedVehicle) return null;
 

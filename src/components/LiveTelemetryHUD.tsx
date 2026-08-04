@@ -32,7 +32,7 @@ export const LiveTelemetryHUD: React.FC<LiveTelemetryHUDProps> = ({
   };
 
   return (
-    <div className="absolute right-3 left-3 sm:left-auto sm:right-6 bottom-20 sm:bottom-24 z-20 sm:w-72 max-w-full sm:max-w-none bg-slate-900/95 backdrop-blur-xl text-white rounded-2xl shadow-2xl border border-slate-700/70 overflow-hidden font-sans transition-all duration-300">
+    <div className="absolute right-3 sm:right-6 bottom-20 sm:bottom-24 z-20 sm:w-72 max-w-[210px] sm:max-w-none bg-slate-900/95 backdrop-blur-xl text-white rounded-2xl shadow-2xl border border-slate-700/70 overflow-hidden font-sans transition-all duration-300">
       {/* HUD Header Bar (Clickable to Expand/Collapse) */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
